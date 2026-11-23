@@ -35,23 +35,26 @@ namespace KE
 	void Application::CreateMainWindow()
 	{
 	    if (isGameApplication)
-        {
-            OS::SetCurrentDir(OS::GetCurrentDir() + "\\..");
-        }
-        else
-        {
-            window.properties.isMaximized = true;
-        }
+		{
+			OS::SetCurrentDir(OS::GetCurrentDir() + "\\..");
+		}
+		else
+		{
+			window.properties.isMaximized = true;
+		}
 
 		if (!window.Create())
 		{
 			Quit();
+			return;
 		}
 
-		//configure renderer
 		Renderer::SetContext(window.Get());
+		
 		Renderer::InitGL();
-        Renderer::CheckOpenGLVersion(window.Get());
+		
+		Renderer::CheckOpenGLVersion(window.Get());
+
         Renderer::GetFramebuffer().Create(window.properties.width, window.properties.height);
 
         //load shaders
@@ -120,7 +123,7 @@ namespace KE
             imguiManager.CreateNewFrame();
 
 			Renderer::GetFramebuffer().Bind();
-			Renderer::Clear(window.properties.width, window.properties.height);
+			Renderer::Clear();
 			OnUpdate();
 			Renderer::GetFramebuffer().Unbind();
 

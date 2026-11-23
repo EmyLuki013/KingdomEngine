@@ -27,6 +27,8 @@ namespace KE
 		void SetPosition(float x, float y);
 		void SetScale(float scaleX, float scaleY);
 		void SetRotation(float degrees);
+		
+		GLuint GetTextureID() const { return texture.GetID(); }
 
 	private:
 		VAO vao;

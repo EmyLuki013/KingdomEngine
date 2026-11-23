@@ -1,0 +1,26 @@
+{
+    "type": "staticLib",
+    "buildType": "distribution",
+    "architecture": "x64",
+    "subsystem": "console",
+    "outputName": "DearImGui",
+    "outputDir": "build/",
+    "cStandard": "c++17",
+    "compiler": "g++",
+    "filesDir": [
+        "src/"
+    ],
+    "includesDir": [
+        "include/ImGui/",
+		"../SDL2/include/SDL/"
+    ],
+    "libsDir": [
+        "../SDL2/lib/"
+    ],
+    "libs": [
+        "SDL2"
+    ],
+    "postBuildCommands": [
+        "copy ThirdParty\\ImGui\\build\\distribution\\x64\\libDearImGui.a bin\\libDearImGui.a"
+    ]
+}

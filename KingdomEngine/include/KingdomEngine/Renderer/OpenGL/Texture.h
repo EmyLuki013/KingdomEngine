@@ -19,6 +19,8 @@ namespace KE
 		void Bind();
 		void Unbind();
 		void Delete();
+		
+		GLuint GetID() const { return ID; }
 
 	private:
 		GLuint ID;

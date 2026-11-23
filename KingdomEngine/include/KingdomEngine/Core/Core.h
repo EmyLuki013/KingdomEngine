@@ -21,6 +21,7 @@ namespace KE
         inline const std::string THIRDPARTY_DIR = OS::GetCurrentDir() + "\\..\\ThirdParty\\";
 
         inline const std::string FONTS_DIR = RESOURCES_DIR + "\\fonts";
+		inline const std::string ICONS_DIR = RESOURCES_DIR + "\\icons";
         inline const std::string SHADERS_GL2 = RESOURCES_DIR + "\\shaders\\gl2";
         inline const std::string SHADERS_GL3 = RESOURCES_DIR + "\\shaders\\gl3";
     };

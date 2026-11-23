@@ -51,7 +51,7 @@ namespace KE
             }
             else
             {
-                static_assert(always_false<T>::value, "Unsupported type for JSON value");
+                static_assert("Unsupported type for JSON value");
             }
 
             if (data.HasMember(jsonKey))
@@ -91,7 +91,7 @@ namespace KE
             }
             else
             {
-                static_assert(always_false<T>::value, "Unsupported type for JSON value");
+                static_assert("Unsupported type for JSON value");
             }
 
             if (!data.HasMember(parentKey.c_str()))
@@ -104,7 +104,7 @@ namespace KE
 
             if (!parentObj.IsObject())
             {
-                LOG_ERROR("Parent key is not a JSON object!");
+                //LOG_ERROR("Parent key is not a JSON object!");
                 return;
             }
 
@@ -120,7 +120,7 @@ namespace KE
         {
             if (!data.HasMember(key.c_str()))
             {
-                LOG_WARN("Key '" + key + "' not found in JSON data.");
+                //LOG_WARN("Key '" + key + "' not found in JSON data.");
                 return defaultValue;
             }
 
@@ -147,7 +147,7 @@ namespace KE
                     return value.GetBool();
             }
 
-            LOG_WARN("Key '" + key + "' does not contain a value of the expected type.");
+            //LOG_WARN("Key '" + key + "' does not contain a value of the expected type.");
             return defaultValue;
         }
 
@@ -156,7 +156,7 @@ namespace KE
         {
             if (!data.HasMember(parentKey.c_str()))
             {
-                LOG_WARN("Parent key '" + parentKey + "' not found in JSON data.");
+                //LOG_WARN("Parent key '" + parentKey + "' not found in JSON data.");
                 return defaultValue;
             }
 
@@ -164,13 +164,13 @@ namespace KE
 
             if (!parent.IsObject())
             {
-                LOG_WARN("Parent key '" + parentKey + "' is not an object.");
+                //LOG_WARN("Parent key '" + parentKey + "' is not an object.");
                 return defaultValue;
             }
 
             if (!parent.HasMember(childKey.c_str()))
             {
-                LOG_WARN("Child key '" + childKey + "' not found under parent key '" + parentKey + "'.");
+                //LOG_WARN("Child key '" + childKey + "' not found under parent key '" + parentKey + "'.");
                 return defaultValue;
             }
 
@@ -197,7 +197,7 @@ namespace KE
                     return value.GetBool();
             }
 
-            LOG_WARN("Child key '" + childKey + "' does not contain a value of the expected type.");
+            //LOG_WARN("Child key '" + childKey + "' does not contain a value of the expected type.");
             return defaultValue;
         }
 

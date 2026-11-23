@@ -4,7 +4,6 @@ A game engine!
 ## Prerequisites
 - Windows 10/11;
 - OpenGL 2/3
-- MSBuild
 
 ## Download and Build
 ### Windows 10/11

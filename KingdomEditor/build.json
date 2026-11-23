@@ -1,0 +1,63 @@
+{
+    "type": "executable",
+    "buildType": "distribution",
+    "architecture": "x64",
+    "subsystem": "console",
+    "outputName": "KingdomEditor",
+    "outputDir": "../build/KingdomEditor/",
+    "cStandard": "c++17",
+    "compiler": "g++",
+    "filesDir": [
+        "src/",
+        "src/ImMenus/",
+        "src/Project/"
+    ],
+    "includesDir": [
+        "include/",
+        "../KingdomEngine/include/",
+        "../ThirdParty/spdlog/include",
+		"../ThirdParty/ImGui/include",
+		"../ThirdParty/SDL2/include",
+		"../ThirdParty/GLM/include",
+        "../ThirdParty/glad/include",
+		"../ThirdParty/stb/include",
+		"../ThirdParty/rapidjson/include"
+    ],
+    "libsDir": [
+        "../ThirdParty/SDL2/lib/",
+        "../ThirdParty/GLEW/lib/",
+        "../build/distribution/x64/",
+        "../ThirdParty/ImGui/build/distribution/x64/"
+    ],
+    "libs": [
+        "KingdomEngine",
+        "DearImGui",
+		"SDL2main",
+        "SDL2",
+        "opengl32",
+		"gdi32",
+        "winmm",
+        "imm32",
+        "version",
+        "setupapi",
+        "ole32",
+        "oleaut32",
+        "shell32",
+        "dinput8",
+        "dxguid",
+        "dxerr8",
+        "user32",
+        "kernel32",
+        "advapi32"
+    ],
+    "defines": [
+        "GLM_ENABLE_EXPERIMENTAL",
+        "SDL_MAIN_HANDLED",
+        "WIN32",
+        "_WIN32",
+        "_WINDOWS"
+    ],
+    "postBuildCommands": [
+        "copy build\\KingdomEditor\\distribution\\x64\\KingdomEditor.exe bin\\KingdomEditor.exe"
+    ]
+}

@@ -5,8 +5,15 @@
 namespace KE
 {
 	ImGuiManager::ImGuiManager()
-		: isEnabled(false), window(nullptr), newFrameIsCalled(false), loadedFont(nullptr),
-		 theme(Theme::DEFAULT), dockspaceIsEnabled(false) {}
+    : window(nullptr),
+      isEnabled(false),
+      dockspaceIsEnabled(false),
+      newFrameIsCalled(false),
+      dockspaceID(0),
+      dockSides{},
+      loadedFont(nullptr),
+      theme(Theme::DEFAULT)
+	{}
 
 	ImGuiManager::~ImGuiManager()
 	{

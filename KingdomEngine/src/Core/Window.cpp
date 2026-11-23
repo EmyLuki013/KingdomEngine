@@ -31,6 +31,13 @@ namespace KE
 
 	bool Window::Create()
 	{
+		// DEBUG: Listar drivers de vídeo disponíveis
+		int numDrivers = SDL_GetNumVideoDrivers();
+		LOG_INFO("Available SDL video drivers:");
+		for (int i = 0; i < numDrivers; i++) {
+			LOG_INFO("  " + std::string(SDL_GetVideoDriver(i)));
+		}
+
 		//CREATE WINDOW
 		window = SDL_CreateWindow(
 			properties.title.c_str(),

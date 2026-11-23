@@ -1,5 +1,7 @@
 #include "KingdomEngine/ImGui/ImWindowManager.h"
 
+#include <algorithm>
+
 namespace KE
 {
 	ImWindowManager& ImWindowManager::Get()

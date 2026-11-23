@@ -1,8 +1,8 @@
 #ifndef GL_CONTEXT_H
 #define GL_CONTEXT_H
 
+#include <glad/glad.h>
 #include <SDL/SDL.h>
-#include <GL/glew.h>
 
 #include "KingdomEngine/Renderer/OpenGL/Framebuffer.h"
 #include "KingdomEngine/Renderer/OpenGL/Shader.h"
@@ -30,7 +30,7 @@ namespace KE
 		static void SetContext(SDL_Window* window);
 		static void InitGL();
 		static void CheckOpenGLVersion(SDL_Window* window);
-		static void Clear(int width, int height);
+		static void Clear();
 
 		static void SetGLVersion(GLVersion version_);
 		static SDL_GLContext& GetContext() { return glContext; }

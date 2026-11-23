@@ -10,6 +10,7 @@
 #include <KingdomEditor/ImWindows/ConfigWindow.h>
 #include <KingdomEditor/ImWindows/BuildProgressBar.h>
 
+
 namespace Editor
 {
 	ViewportWindow viewportWindow;

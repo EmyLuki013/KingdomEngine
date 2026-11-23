@@ -1,7 +1,7 @@
 #ifndef EBO_H
 #define EBO_H
 
-#include <GL/glew.h>
+#include <glad/glad.h>
 
 #include <vector>
 

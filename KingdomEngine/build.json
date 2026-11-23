@@ -1,0 +1,51 @@
+{
+    "type": "staticLib",
+    "buildType": "distribution",
+    "architecture": "x64",
+    "subsystem": "console",
+    "outputName": "KingdomEngine",
+    "outputDir": "../build/",
+    "cStandard": "c++17",
+    "compiler": "g++",
+    "filesDir": [
+        "../ThirdParty/stb/src/",
+        "../ThirdParty/glad/src/",
+        "src/Core/",
+        "src/Core/IO/",
+        "src/ImGui/",
+        "src/Renderer/",
+        "src/Renderer/OpenGL/"
+    ],
+    "includesDir": [
+        "include/",
+        "../ThirdParty/spdlog/include",
+		"../ThirdParty/ImGui/include",
+		"../ThirdParty/SDL2/include",
+		"../ThirdParty/GLM/include",
+		"../ThirdParty/glad/include",
+		"../ThirdParty/stb/include",
+		"../ThirdParty/rapidjson/include"
+    ],
+    "libsDir": [
+        "../ThirdParty/SDL2/lib/",
+        "../ThirdParty/GLEW/lib/",
+        "../ThirdParty/ImGui/build/distribution/x64/"
+    ],
+    "libs": [
+        "SDL2",
+        "DearImGui",
+        "opengl32",
+        "Winmm",
+        "Imm32",
+        "Version"
+    ],
+    "defines": [
+        "GLM_ENABLE_EXPERIMENTAL",
+        "WIN32",
+        "_WIN32",
+        "_WINDOWS"
+    ],
+    "postBuildCommands": [
+        "copy build\\distribution\\x64\\libKingdomEngine.a bin\\libKingdomEngine.a"
+    ]
+}
