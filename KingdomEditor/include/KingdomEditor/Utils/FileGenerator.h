@@ -1,100 +1,110 @@
 #ifndef FILE_GENERATOR_H
 #define FILE_GENERATOR_H
 
+#include <KingdomEngine/Core/Core.h>
+#include <KingdomEngine/Core/Log.h>
+
+#include <filesystem>
+#include <sstream>
 #include <string>
 #include <algorithm>
+#include <vector>
 
 namespace Editor
 {
     class FileGenerator
     {
     public:
-        static std::string GenerateBuildScriptFile(std::string projectName)
+        static std::string GenerateBuildConfigFile(const std::string& projectName, const std::string& projectPath)
         {
-            std::string scriptFile =
-R"DELIMITER(workspace "PROJECT_NAME"
-	architecture "x64"
-	configurations
-	{
-		"Debug",
-		"Release"
-	}
+            namespace fs = std::filesystem;
 
-project "PROJECT_NAME"
-	kind "ConsoleApp"
-	language "C++"
+            const fs::path projectDirectory(projectPath);
+            const fs::path sourceDirectory = projectDirectory / "src";
+            std::error_code error;
+            if (!fs::is_directory(sourceDirectory, error) || error)
+            {
+                LOG_ERROR("Project source directory does not exist: " + sourceDirectory.string());
+                return "";
+            }
 
-	targetdir ("build/")
-	objdir ("build/obj")
+            std::vector<std::string> sourceDirectories = {"src/"};
+            fs::recursive_directory_iterator current(sourceDirectory, fs::directory_options::none, error);
+            const fs::recursive_directory_iterator end;
+            while (!error && current != end)
+            {
+                if (current->is_directory(error))
+                {
+                    if (error)
+                        break;
 
-	files
-	{
-		"src/**.h",
-		"src/**.cpp"
-	}
-	
-	defines
-	{
-		"_CRT_SECURE_NO_WARNINGS",
-		"_SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS",
-		"_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING"
-	}
+                    sourceDirectories.push_back(current->path().lexically_relative(projectDirectory).generic_string() + "/");
+                }
+                current.increment(error);
+            }
 
-	includedirs
-	{
-		"KEINCLUDE",
-		"THIRDPARTYspdlog/include",
-        "THIRDPARTYImGui/include",
-        "THIRDPARTYGLEW/include",
-        "THIRDPARTYGLM/include",
-        "THIRDPARTYSDL2/include",
-        "THIRDPARTYstb/include",
-        "THIRDPARTYrapidjson/include"
-	}
+            if (error)
+            {
+                LOG_ERROR("Could not enumerate project source directories: " + error.message());
+                return "";
+            }
 
-	defines
-	{
-	    "GAME_APPLICATION"
-	}
+            const fs::path thirdPartyDirectory(KE::Core::THIRDPARTY_DIR);
+            std::vector<std::string> includeDirectories = {
+                KE::Core::KE_INCLUDE_DIR,
+                (thirdPartyDirectory / "spdlog/include").string(),
+                (thirdPartyDirectory / "ImGui/include").string(),
+                (thirdPartyDirectory / "GLEW/include").string(),
+                (thirdPartyDirectory / "GLM/include").string(),
+                (thirdPartyDirectory / "SDL2/include").string(),
+                (thirdPartyDirectory / "stb/include").string(),
+                (thirdPartyDirectory / "rapidjson/include").string(),
+                (thirdPartyDirectory / "glad/include").string()
+            };
+            std::vector<std::string> libraryDirectories = {
+                KE::Core::EXE_DIR,
+                (thirdPartyDirectory / "SDL2/lib").string(),
+                (thirdPartyDirectory / "GLEW/lib").string()
+            };
+            for (std::string& directory : includeDirectories)
+                directory = MakeProjectRelativePath(directory, projectDirectory);
+            for (std::string& directory : libraryDirectories)
+                directory = MakeProjectRelativePath(directory, projectDirectory);
 
-	links
-	{
-		"EXEDIR/KingdomEngine.lib",
-		"THIRDPARTYSDL2/lib/SDL2.lib",
-        "THIRDPARTYSDL2/lib/SDL2main.lib",
-        "THIRDPARTYGLEW/lib/glew32s.lib",
-        "EXEDIR/DearImGui.lib",
-        "opengl32",
-        "Winmm",
-        "Imm32",
-        "Version"
-	}
+            const std::vector<std::string> libraries = {
+                "KingdomEngine", "DearImGui", "SDL2main", "SDL2", "opengl32", "gdi32",
+                "winmm", "imm32", "version", "setupapi", "ole32", "oleaut32", "shell32",
+                "dinput8", "dxguid", "user32", "kernel32", "advapi32"
+            };
+            const std::vector<std::string> defines = {
+                "GLM_ENABLE_EXPERIMENTAL", "SDL_MAIN_HANDLED", "WIN32", "_WIN32", "_WINDOWS",
+                "_CRT_SECURE_NO_WARNINGS", "_SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS",
+                "_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING", "GAME_APPLICATION"
+            };
 
-	filter "system:windows"
-		cppdialect "C++17"
-		systemversion "latest"
-		
-	filter "configurations:Debug"
-		defines "KE_DEBUG"
-		symbols "On"
+            std::ostringstream config;
+            config << "{\n"
+                   << "    \"type\": \"executable\",\n"
+                   << "    \"buildType\": \"distribution\",\n"
+                   << "    \"architecture\": \"x64\",\n"
+                   << "    \"subsystem\": \"console\",\n"
+                   << "    \"outputName\": \"" << EscapeJson(projectName) << "\",\n"
+                   << "    \"outputDir\": \"build/\",\n"
+                   << "    \"cStandard\": \"c++17\",\n"
+                   << "    \"compiler\": \"g++\",\n";
+            AppendJsonArray(config, "filesDir", sourceDirectories);
+            AppendJsonArray(config, "includesDir", includeDirectories);
+            AppendJsonArray(config, "libsDir", libraryDirectories);
+            AppendJsonArray(config, "libs", libraries);
+            AppendJsonArray(config, "defines", defines);
 
-	filter "configurations:Release"
-		defines "KE_RELEASE"
-		optimize "On"
-)DELIMITER";
-
-            //replace slahses
-            std::string thirdpartyDir = ReplaceSlash(KE::Core::THIRDPARTY_DIR);
-            std::string keIncludeDir = ReplaceSlash(KE::Core::KE_INCLUDE_DIR);
-            std::string exeDir = ReplaceSlash(KE::Core::EXE_DIR);
-
-            //replace words
-            scriptFile = ReplaceTextWord(scriptFile, "PROJECT_NAME", projectName);
-            scriptFile = ReplaceTextWord(scriptFile, "KEINCLUDE", keIncludeDir);
-            scriptFile = ReplaceTextWord(scriptFile, "EXEDIR", exeDir);
-            scriptFile = ReplaceTextWord(scriptFile, "THIRDPARTY", thirdpartyDir);
-
-            return scriptFile;
+            const std::string executableName = EscapeJson(projectName);
+            config << "    \"postBuildCommands\": [\n"
+                   << "        \"copy /Y \\\"build\\\\distribution\\\\x64\\\\" << executableName
+                   << ".exe\\\" \\\"build\\\\" << executableName << ".exe\\\"\"\n"
+                   << "    ]\n"
+                   << "}\n";
+            return config.str();
         }
 
         static std::string GenerateProjectCppFile(std::string projectName)
@@ -146,32 +156,63 @@ KE::Application *KE::CreateApplication()
         }
 
     private:
-        static std::string ReplaceSlash(const std::string& slashToReplace)
+        static std::string MakeProjectRelativePath(const std::string& path, const std::filesystem::path& projectDirectory)
         {
-            std::string slashStr = slashToReplace;
-            size_t slashPos = 0;
-            while ((slashPos = slashStr.find("\\", slashPos)) != std::string::npos)
+            const std::filesystem::path normalizedProject = projectDirectory.lexically_normal();
+            const std::filesystem::path normalizedPath = std::filesystem::path(path).lexically_normal();
+            const std::filesystem::path relativePath = normalizedPath.lexically_relative(normalizedProject);
+            return (relativePath.empty() ? normalizedPath : relativePath).generic_string();
+        }
+
+        static void AppendJsonArray(std::ostringstream& output, const std::string& name, const std::vector<std::string>& values)
+        {
+            output << "    \"" << name << "\": [";
+            if (!values.empty())
+                output << "\n";
+
+            for (size_t i = 0; i < values.size(); ++i)
             {
-                slashStr.replace(slashPos, 1, "/");
-                slashPos += 2;
+                output << "        \"" << EscapeJson(std::filesystem::path(values[i]).generic_string()) << "\"";
+                if (i + 1 < values.size())
+                    output << ",";
+                output << "\n";
             }
 
-            return slashStr;
+            output << "    ],\n";
+        }
+
+        static std::string EscapeJson(const std::string& value)
+        {
+            std::string escaped;
+            for (char character : value)
+            {
+                switch (character)
+                {
+                    case '\\': escaped += "\\\\"; break;
+                    case '"': escaped += "\\\""; break;
+                    case '\b': escaped += "\\b"; break;
+                    case '\f': escaped += "\\f"; break;
+                    case '\n': escaped += "\\n"; break;
+                    case '\r': escaped += "\\r"; break;
+                    case '\t': escaped += "\\t"; break;
+                    default: escaped += character; break;
+                }
+            }
+
+            return escaped;
         }
 
         static std::string ReplaceTextWord(const std::string& text, const std::string& fromWord, const std::string& toWord)
         {
-            std::string wordStr = text;
-            size_t thirdpartyDirPos = 0;
-            size_t fromWordLength = fromWord.length();
-
-            while ((thirdpartyDirPos = wordStr.find(fromWord, thirdpartyDirPos)) != std::string::npos)
+            std::string result = text;
+            size_t position = 0;
+            while ((position = result.find(fromWord, position)) != std::string::npos)
             {
-                wordStr.replace(thirdpartyDirPos, fromWordLength, toWord);
-                thirdpartyDirPos += toWord.length();
+                result.replace(position, fromWord.length(), toWord);
+                position += toWord.length();
             }
 
-            return wordStr;
+            return result;
         }
 
     };

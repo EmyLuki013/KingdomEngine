@@ -7,6 +7,7 @@
 
 #include <thread>
 #include <atomic>
+#include <string>
 
 namespace Editor
 {
@@ -14,14 +15,11 @@ namespace Editor
     {
     public:
         static void Build();
-        static void GenerateBuildFiles(std::atomic<bool>& filesGenerated);
-        static void Compile(std::atomic<bool>& compileDone);
+        static void Compile(const std::string& projectPath, std::atomic<bool>& compileDone);
 
         static float buildProgress;
         static bool buildDone;
         static bool buildStarted;
-        static bool generatingBuildFiles;
-        static std::atomic<bool> filesGenerated;
         static std::atomic<bool> compileDone;
 
     };

@@ -25,16 +25,8 @@ namespace Editor
 			ImGui::SetCursorPos(ImVec2(100, 10));
             ImGui::Text("Building Project...");
 
-			if (ProjectBuild::generatingBuildFiles)
-			{
-				ImGui::SetCursorPos(ImVec2(70, 30));
-            	ImGui::Text("Generating build files");
-			}
-			else
-			{
-				ImGui::SetCursorPos(ImVec2(70, 30));
-            	ImGui::Text("Compiling project");
-			}
+			ImGui::SetCursorPos(ImVec2(70, 30));
+			ImGui::Text("Compiling project");
 
             ImGui::SetCursorPos(ImVec2(50, 50));
             ImGui::PushItemWidth(200);

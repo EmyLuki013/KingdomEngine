@@ -8,8 +8,6 @@ namespace Editor
     float ProjectBuild::buildProgress = 0.0f;
     bool ProjectBuild::buildDone = false;
     bool ProjectBuild::buildStarted = false;
-    bool ProjectBuild::generatingBuildFiles = false;
-    std::atomic<bool> ProjectBuild::filesGenerated = false;
     std::atomic<bool> ProjectBuild::compileDone = false;
 
     void ProjectBuild::Build()
@@ -19,57 +17,68 @@ namespace Editor
             LOG_WARN("Starting project build");
             buildStarted = true;
             buildDone = false;
+            compileDone = false;
             SET_IM_WINDOW_VISIBLE("BuildProgressBar", true);
 
-            //create project build script temp
-            KE::File buildScript;
-            buildScript.Open(ProjectManager::Get().GetLoadedProject()->properties.path + "\\premake5.lua", KE::ModeFlags::WRITE);
-            buildScript.Write(FileGenerator::GenerateBuildScriptFile(ProjectManager::Get().GetLoadedProject()->properties.name));
-            buildScript.Close();
+            const auto* project = ProjectManager::Get().GetLoadedProject();
+            const std::string projectPath = project->properties.path;
+            const std::string buildConfig = FileGenerator::GenerateBuildConfigFile(project->properties.name, project->properties.path);
+            if (buildConfig.empty())
+            {
+                buildStarted = false;
+                buildDone = true;
+                SET_IM_WINDOW_VISIBLE("BuildProgressBar", false);
+                BuildErrorDialog::SetShow();
+                return;
+            }
 
-            //copy SDL DLL file
-            KE::File sdlDll;
-            if (!sdlDll.Exists(ProjectManager::Get().GetLoadedProject()->properties.path + "\\build\\SDL2.dll"))
-                sdlDll.Copy(KE::Core::EXE_DIR + "\\SDL2.dll", ProjectManager::Get().GetLoadedProject()->properties.path + "\\build\\SDL2.dll");
+            KE::File buildConfigFile;
+            buildConfigFile.Open(projectPath + "\\build.json", KE::ModeFlags::WRITE);
+            if (!buildConfigFile.IsOpen())
+            {
+                buildStarted = false;
+                buildDone = true;
+                SET_IM_WINDOW_VISIBLE("BuildProgressBar", false);
+                BuildErrorDialog::SetShow();
+                return;
+            }
+            buildConfigFile.Write(buildConfig);
+            buildConfigFile.GetFile().flush();
+            const bool configWritten = buildConfigFile.GetFile().good();
+            buildConfigFile.Close();
+            if (!configWritten)
+            {
+                LOG_ERROR("Could not write King Builder configuration");
+                buildStarted = false;
+                buildDone = true;
+                SET_IM_WINDOW_VISIBLE("BuildProgressBar", false);
+                BuildErrorDialog::SetShow();
+                return;
+            }
 
-            // generate build files
-            generatingBuildFiles = true;
-            std::thread generateFilesThread(GenerateBuildFiles, std::ref(filesGenerated));
-            generateFilesThread.detach();
+            std::thread compileThread(Compile, projectPath, std::ref(compileDone));
+            compileThread.detach();
         }
     }
 
-    void ProjectBuild::GenerateBuildFiles(std::atomic<bool> &filesGenerated)
+    void ProjectBuild::Compile(const std::string& projectPath, std::atomic<bool> &compileDone)
     {
-        std::string command = "call " + KE::Core::WINDOWS_TOOLS_DIR + "premake5.exe vs2022";
+        const std::string command = "cd /d \"" + projectPath + "\" && \"" +
+            KE::Core::WINDOWS_TOOLS_DIR + "KingBuilder.exe\"";
+
         int result = std::system(command.c_str());
         if (result != 0)
         {
-            buildDone = true;
-            buildStarted = false;
-            LOG_ERROR("Error to generate build files");
-            SET_IM_WINDOW_VISIBLE("BuildProgressBar", false);
+            LOG_ERROR("King Builder failed to build the project");
             BuildErrorDialog::SetShow();
-            return;
         }
 
-        filesGenerated = true;
-    }
-
-    void ProjectBuild::Compile(std::atomic<bool> &compileDone)
-    {
-        std::string projectName = ProjectManager::Get().GetLoadedProject()->properties.name;
-        std::string projectSolution = projectName + ".sln";
-
-        std::string command =
-            "\"\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" && "
-        "msbuild \"" + projectSolution + "\" /p:Configuration=Release /p:Platform=x64\"";
-
-        int result = std::system(command.c_str());
-        if (result != 0)
+        const std::string buildConfigPath = projectPath + "\\build.json";
+        if (KE::File::Exists(buildConfigPath))
         {
-            LOG_ERROR("Error to compile project files");
-            BuildErrorDialog::SetShow();
+            KE::File buildConfigFile;
+            buildConfigFile.Open(buildConfigPath, KE::ModeFlags::READ);
+            buildConfigFile.Remove();
         }
 
         compileDone = true;

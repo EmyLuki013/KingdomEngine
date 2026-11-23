@@ -1,6 +1,19 @@
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
+#include <windows.h>
+#include <shellapi.h>
+
 #include <KingdomEngine/ImGui/ImMenu.h>
+#include <KingdomEngine/Core/Log.h>
 
 #include "KingdomEditor/DialogBox/SaveProjectDialogBox.h"
+#include "KingdomEditor/Project/ProjectManager.h"
 #include "KingdomEditor/Utils/Globals.h"
 
 namespace Editor
@@ -36,6 +49,18 @@ namespace Editor
 		    if (Item("Open"))
 			{
 
+			}
+
+			const auto* project = ProjectManager::Get().GetLoadedProject();
+			if (ImGui::MenuItem("Open Project Directory", nullptr, false, project != nullptr))
+			{
+				const std::string& projectPath = project->properties.path;
+				const HINSTANCE result = ShellExecuteA(nullptr, "explore", projectPath.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+				const INT_PTR resultCode = reinterpret_cast<INT_PTR>(result);
+				if (resultCode <= 32)
+				{
+					LOG_ERROR("Failed to open project directory in File Explorer. ShellExecute error: " + std::to_string(resultCode));
+				}
 			}
 
 			if (Item("Save Project"))
