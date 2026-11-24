@@ -1,4 +1,5 @@
 #include "KingdomEngine/Core/Application.h"
+#include "KingdomEngine/ImGui/ImWindowManager.h"
 
 namespace KE
 {
@@ -91,6 +92,7 @@ namespace KE
 			if (window.Get() != nullptr)
 			{
 				ActivateImGui();
+				ImWindowManager::Get().OnReadyAllWindows();
 			}
 			appEvent.eventType = EventType::None;
 			break;
@@ -101,6 +103,7 @@ namespace KE
 			if (window.Get() != nullptr)
 			{
 				ActivateImGui();
+				ImWindowManager::Get().OnReadyAllWindows();
 			}
 			appEvent.eventType = EventType::None;
 			break;

@@ -12,12 +12,17 @@
     #pragma warning(pop)
 #endif
 
+#include <string>
+#include <vector>
+
 namespace KE
 {
 	class Log
 	{
 	public:
 		static void Init(const std::string& logsFileName);
+		static std::vector<std::string> GetMessages();
+		static void ClearMessages();
 
 		static std::shared_ptr<spdlog::logger>& GetLogger() { return logger; }
 
