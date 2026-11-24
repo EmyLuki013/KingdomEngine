@@ -13,9 +13,9 @@ namespace KE
 	{
         //LOAD IMAGE
         type = textureType;
-		int widthImg, heightImg, numColCh;
+		int widthImg, heightImg;
 		stbi_set_flip_vertically_on_load(true);
-		unsigned char* bytes = stbi_load(imagePath.c_str(), &widthImg, &heightImg, &numColCh, 0);
+		unsigned char* bytes = stbi_load(imagePath.c_str(), &widthImg, &heightImg, nullptr, STBI_rgb_alpha);
 
 		//CHECK FOR ERRORS
 		if (bytes)
@@ -41,22 +41,7 @@ namespace KE
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-		//defines the texture format based on the number of channels in the loaded image
-		if (numColCh == 3)
-		{
-			format = GL_RGB;
-		}
-		else if (numColCh == 4)
-		{
-			format = GL_RGBA;
-		}
-		else
-		{
-			LOG_INFO("Unsupported number of channels: " + std::to_string(numColCh));
-			stbi_image_free(bytes);
-			glBindTexture(GL_TEXTURE_2D, 0);
-			return;
-		}
+		format = GL_RGBA;
 
 		//CREATE TEXTURE AND GENERATE MIPMAP
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, widthImg, heightImg, 0, format, pixelType, bytes);

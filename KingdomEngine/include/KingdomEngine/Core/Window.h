@@ -4,6 +4,7 @@
 #include "KingdomEngine/Renderer/Renderer.h"
 
 #include <string>
+#include <vector>
 
 namespace KE
 {
@@ -27,6 +28,7 @@ namespace KE
 		void Update();
 		void SetTitle(const std::string& title);
 		void SetSize(int width, int height);
+		std::vector<std::string> TakeDroppedFiles();
 
 		SDL_Window* Get() { return window; }
 
@@ -34,6 +36,7 @@ namespace KE
 
 	private:
 		SDL_Window* window;
+		std::vector<std::string> droppedFiles;
 
 	};
 }

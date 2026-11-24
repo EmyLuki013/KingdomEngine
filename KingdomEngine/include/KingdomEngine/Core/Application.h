@@ -33,12 +33,14 @@ namespace KE
 		void DisableApplication();
 		void EventHandle();
 
+		static Application* GetInstance();
 		Window& GetWindow() { return window; }
 
 		void Run();
 		void Quit();
 
 	private:
+		static Application* instance;
 		bool isRunning;
 		bool isGameApplication;
 		ApplicationEvent appEvent;

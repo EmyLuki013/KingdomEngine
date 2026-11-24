@@ -19,6 +19,7 @@ namespace KE
 		void OnReadyAllWindows();
 		void UpdateAllWindows();
 		void UpdateAllWindowsDockspace(KE::ImGuiManager& imguiManager);
+		ImWindow* GetWindow(const std::string& windowName);
 		void SetWindowVisible(const std::string& windowName, bool visible);
 		bool GetWindowVisible(const std::string& windowName);
 

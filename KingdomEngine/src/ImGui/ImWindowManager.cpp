@@ -77,6 +77,12 @@ namespace KE
 		}
 	}
 
+	ImWindow* ImWindowManager::GetWindow(const std::string& windowName)
+	{
+		auto it = windowsMap.find(windowName);
+		return it != windowsMap.end() ? it->second : nullptr;
+	}
+
 	void ImWindowManager::SetWindowVisible(const std::string& windowName, bool visible)
 	{
 		auto it = windowsMap.find(windowName);

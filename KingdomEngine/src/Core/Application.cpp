@@ -3,9 +3,12 @@
 
 namespace KE
 {
+	Application* Application::instance = nullptr;
+
 	Application::Application(bool isGameApplication)
 		: imguiManager(ImGuiManager::Get())
 	{
+		instance = this;
 	    LOG_INFO(isGameApplication);
 		isRunning = true;
 		Application::isGameApplication = isGameApplication;
@@ -19,6 +22,13 @@ namespace KE
 
 	Application::~Application()
 	{
+		if (instance == this)
+			instance = nullptr;
+	}
+
+	Application* Application::GetInstance()
+	{
+		return instance;
 	}
 
 	// IMGUI

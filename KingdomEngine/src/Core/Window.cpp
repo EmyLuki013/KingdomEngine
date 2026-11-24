@@ -58,6 +58,8 @@ namespace KE
 			LOG_INFO("Window created");
 		}
 
+		SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
+
 		if (properties.isMaximized)
 		{
 			SDL_MaximizeWindow(window);
@@ -74,6 +76,11 @@ namespace KE
 		{
 			if (ImGuiManager::Get().IsEnabled())
 				ImGui_ImplSDL2_ProcessEvent(&event);
+			if (event.type == SDL_DROPFILE && event.drop.file)
+			{
+				droppedFiles.emplace_back(event.drop.file);
+				SDL_free(event.drop.file);
+			}
 			if (event.type == SDL_QUIT)
 				DISPATCH_EVENT(EventType::WindowClose);
 			if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(window))
@@ -88,6 +95,13 @@ namespace KE
 
 		//update window size properties
 		SDL_GetWindowSize(window, &properties.width, &properties.height);
+	}
+
+	std::vector<std::string> Window::TakeDroppedFiles()
+	{
+		std::vector<std::string> files;
+		files.swap(droppedFiles);
+		return files;
 	}
 
 	void Window::Destroy()

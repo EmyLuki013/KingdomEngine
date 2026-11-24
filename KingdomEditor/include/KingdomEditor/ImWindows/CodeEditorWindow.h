@@ -73,6 +73,27 @@ namespace Editor
 			editor.SetLanguageDefinition(lang);
 		}
 
+		bool OpenFile(const std::string& filePath)
+		{
+			KE::File file;
+			file.Open(filePath, KE::ModeFlags::READ);
+			if (!file.IsOpen())
+				return false;
+
+			std::string contents = file.Read();
+			file.Close();
+			if (file.GetFile().bad())
+			{
+				LOG_ERROR("Could not read file: " + filePath);
+				return false;
+			}
+
+			editor.SetText(contents);
+			cppFile = filePath;
+			fileIsLoaded = true;
+			return true;
+		}
+
 		void OnRender() override
 		{
 			//load project cpp file
@@ -83,23 +104,9 @@ namespace Editor
 					std::remove(projectName.begin(), projectName.end(), ' '),
 					projectName.end()
 				);
-				cppFile = ProjectManager::Get().GetLoadedProject()->properties.path + "\\src\\" + projectName + ".cpp";
-				fileToEdit.Open(cppFile, KE::ModeFlags::READ);
-				
-				if (fileToEdit.IsOpen())
-				{
-					std::string str((std::istreambuf_iterator<char>(fileToEdit.GetFile())), std::istreambuf_iterator<char>());
-					editor.SetText(str);
-					fileToEdit.Close();
-				}
-				else
-				{
-					LOG_ERROR("Could not open file: " + cppFile);
-					fileToEdit.Close();
+				const std::string mainFile = ProjectManager::Get().GetLoadedProject()->properties.path + "\\src\\" + projectName + ".cpp";
+				if (!OpenFile(mainFile))
 					return;
-				}
-				
-				fileIsLoaded = true;
 			}
 			
 			//unload cpp file
@@ -113,10 +120,11 @@ namespace Editor
 			{
 				auto textToSave = editor.GetText();
 				
-				fileToEdit.Open(cppFile, KE::ModeFlags::WRITE);
+				KE::File fileToSave;
+				fileToSave.Open(cppFile, KE::ModeFlags::WRITE);
 				LOG_INFO(cppFile);
-				fileToEdit.Write(textToSave);
-				fileToEdit.Close();
+				fileToSave.Write(textToSave);
+				fileToSave.Close();
 				
 				Globals::CAN_SAVE_FILE = false;
 			}
@@ -133,14 +141,13 @@ namespace Editor
 			ImGui::Text("%6d/%-6d %6d lines  | %s | %s | %s | %s", cpos.mLine + 1, cpos.mColumn + 1, editor.GetTotalLines(),
 			editor.IsOverwrite() ? "Ovr" : "Ins",
 			editor.CanUndo() ? "*" : " ",
-			editor.GetLanguageDefinition().mName.c_str(), fileToEdit.GetFilename().c_str());
+			editor.GetLanguageDefinition().mName.c_str(), cppFile.c_str());
 
 			editor.Render("TextEditor");
 		}
 		
 	private:
 		TextEditor editor;
-		KE::File fileToEdit;
 		bool fileIsLoaded;
 		std::string cppFile;
 		
