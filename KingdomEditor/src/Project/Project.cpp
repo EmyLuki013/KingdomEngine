@@ -19,6 +19,7 @@ namespace Editor
         kepDict.Add("name", properties.name);
         kepDict.Add("gl_version", properties.glVersion);
         kepDict.Add("background_color", properties.backgroundColor.GetHex());
+        kepDict.Add("startup_scene", properties.startupScene);
 		kepDict.Add("window_title", properties.name);
 		kepDict.Add("window_width", properties.windowProperties.width);
 		kepDict.Add("window_height", properties.windowProperties.height);
@@ -31,6 +32,7 @@ namespace Editor
         projectJson.SetValue("project", "name", properties.name);
         projectJson.SetValue("project", "gl_version", properties.glVersion);
         projectJson.SetValue("project", "background_color", properties.backgroundColor.GetHex());
+        projectJson.SetValue("project", "startup_scene", properties.startupScene);
 		projectJson.SetValue("project", "window_title", properties.windowProperties.title);
 		projectJson.SetValue("project", "window_width", properties.windowProperties.width);
 		projectJson.SetValue("project", "window_height", properties.windowProperties.height);
@@ -75,6 +77,8 @@ namespace Editor
 		properties.windowProperties.title = windowTitle;
 		properties.windowProperties.width = windowWidth;
 		properties.windowProperties.height = windowHeight;
+        properties.startupScene = projectJson.GetValue<std::string>(
+            "project", "startup_scene", "scenes/Main.scene");
 
         if (glVersion == KE::GLVersion::OpenGL2)
         {

@@ -1,6 +1,8 @@
 #include "KingdomEngine/Core/Application.h"
 #include "KingdomEngine/ImGui/ImWindowManager.h"
 
+#include <glm/gtc/matrix_transform.hpp>
+
 namespace KE
 {
 	Application* Application::instance = nullptr;
@@ -31,6 +33,15 @@ namespace KE
 		return instance;
 	}
 
+	void Application::SetSceneViewportSize(float width, float height)
+	{
+		if (width > 0.0f && height > 0.0f)
+		{
+			sceneViewportWidth = width;
+			sceneViewportHeight = height;
+		}
+	}
+
 	// IMGUI
 	void Application::ActivateImGui()
 	{
@@ -59,6 +70,8 @@ namespace KE
 			Quit();
 			return;
 		}
+		SetSceneViewportSize(static_cast<float>(window.properties.width),
+			static_cast<float>(window.properties.height));
 
 		Renderer::SetContext(window.Get());
 		
@@ -138,6 +151,16 @@ namespace KE
 			Renderer::GetFramebuffer().Bind();
 			Renderer::Clear();
 			OnUpdate();
+			if (Scene* scene = sceneManager.GetActiveScene())
+			{
+				constexpr float viewHeight = 10.0f;
+				const float aspect = sceneViewportWidth / sceneViewportHeight;
+				const float halfHeight = viewHeight * 0.5f;
+				const float halfWidth = halfHeight * aspect;
+				const glm::mat4 viewProjection = glm::ortho(
+					-halfWidth, halfWidth, -halfHeight, halfHeight, -100.0f, 100.0f);
+				scene->Render(viewProjection);
+			}
 			Renderer::GetFramebuffer().Unbind();
 
 			// IMGUI DOCKSPACE

@@ -11,6 +11,7 @@ namespace KE
 		, active(true)
 		, parent(nullptr)
 	{
+		components.emplace_back(new Transform(this));
 	}
 
 	void GameObject::SetName(const std::string& value)
@@ -19,7 +20,7 @@ namespace KE
 			return;
 
 		name = value;
-		owner->MarkDirty();
+		MarkDirty();
 	}
 
 	void GameObject::SetActive(bool value)
@@ -28,6 +29,32 @@ namespace KE
 			return;
 
 		active = value;
+		MarkDirty();
+	}
+
+	void GameObject::MarkDirty()
+	{
 		owner->MarkDirty();
+	}
+
+	void GameObject::Render(const glm::mat4& viewProjection, const glm::mat4& parentTransform)
+	{
+		if (!active)
+			return;
+
+		const Transform* transform = GetComponent<Transform>();
+		const glm::mat4 localTransform = transform && transform->IsEnabled()
+			? transform->GetLocalMatrix()
+			: glm::mat4(1.0f);
+		const glm::mat4 worldTransform = parentTransform * localTransform;
+
+		for (const auto& component : components)
+		{
+			if (component->IsEnabled())
+				component->Render(viewProjection, worldTransform);
+		}
+
+		for (const auto& child : children)
+			child->Render(viewProjection, worldTransform);
 	}
 }

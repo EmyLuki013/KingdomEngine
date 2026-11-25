@@ -4,11 +4,20 @@
 namespace KE
 {
     Framebuffer::Framebuffer()
+        : FBO(0)
+        , RBO(0)
+        , rectVAO(0)
+        , rectVBO(0)
+        , framebufferTexture(0)
+        , width(0)
+        , height(0)
     {
     }
 
     void Framebuffer::Create(int width, int height)
     {
+        this->width = width;
+        this->height = height;
         float rectangleVertices[] =
         {
             // Coords    // texCoords
@@ -61,6 +70,7 @@ namespace KE
     void Framebuffer::Bind()
     {
         glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+        glViewport(0, 0, width, height);
     }
 
     void Framebuffer::Unbind()
@@ -75,6 +85,13 @@ namespace KE
         glDeleteVertexArrays(1, &rectVAO);
         glDeleteBuffers(1, &rectVBO);
         glDeleteTextures(1, &framebufferTexture);
+        FBO = 0;
+        RBO = 0;
+        rectVAO = 0;
+        rectVBO = 0;
+        framebufferTexture = 0;
+        width = 0;
+        height = 0;
     }
 
     void Framebuffer::Draw(int width, int height)

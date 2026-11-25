@@ -14,7 +14,7 @@ namespace KE
 
 		Texture();
 
-        void LoadTexture(const std::string& imagePath, const std::string& textureType, GLenum slot, GLenum pixelType);
+        bool LoadTexture(const std::string& imagePath, const std::string& textureType, GLenum slot, GLenum pixelType);
 		void TextureUnit(Shader& shader, const std::string& uniform, GLuint unit);
 		void Bind();
 		void Unbind();

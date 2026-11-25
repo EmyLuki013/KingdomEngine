@@ -1,6 +1,7 @@
 #ifndef VIEWPORT_WINDOW_H
 #define VIEWPORT_WINDOW_H
 
+#include <KingdomEngine/Core/Application.h>
 #include <KingdomEngine/ImGui/ImWindow.h>
 
 namespace Editor
@@ -22,6 +23,9 @@ namespace Editor
 		{
 		    const float window_width = ImGui::GetContentRegionAvail().x;
             const float window_height = ImGui::GetContentRegionAvail().y;
+
+			if (KE::Application* application = KE::Application::GetInstance())
+				application->SetSceneViewportSize(window_width, window_height);
 
             glViewport(0, 0, static_cast<GLsizei>(window_width), static_cast<GLsizei>(window_height));
 

@@ -113,6 +113,10 @@ namespace KE
             {
                 parentObj[jsonChildKey] = jsonValue;
             }
+            else
+            {
+                parentObj.AddMember(jsonChildKey, jsonValue, allocator);
+            }
         }
 
         template <typename T>

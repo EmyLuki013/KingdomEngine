@@ -1,4 +1,5 @@
 #include "KingdomEngine/Scene/Scene.h"
+#include "KingdomEngine/Scene/SpriteComponent.h"
 
 #include <algorithm>
 #include <cmath>
@@ -6,6 +7,7 @@
 #include <limits>
 #include <unordered_set>
 
+#include <glad/glad.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/prettywriter.h>
@@ -16,7 +18,8 @@ namespace KE
 	namespace
 	{
 		constexpr const char* SceneFormat = "KingdomEngineScene";
-		constexpr unsigned SceneFormatVersion = 1;
+		constexpr unsigned SceneFormatVersion = 2;
+		constexpr unsigned LegacySceneFormatVersion = 1;
 		constexpr unsigned MaxHierarchyDepth = 256;
 
 		template<typename Writer>
@@ -41,13 +44,36 @@ namespace KE
 			writer.Key("active");
 			writer.Bool(object.IsActive());
 
-			writer.Key("transform");
-			writer.StartObject();
-			const Transform& transform = object.GetTransform();
-			WriteVector3(writer, "position", transform.position);
-			WriteVector3(writer, "rotation", transform.rotation);
-			WriteVector3(writer, "scale", transform.scale);
-			writer.EndObject();
+			writer.Key("components");
+			writer.StartArray();
+			for (const auto& component : object.GetComponents())
+			{
+				if (const Transform* transform = dynamic_cast<const Transform*>(component.get()))
+				{
+					writer.StartObject();
+					writer.Key("type");
+					writer.String("Transform");
+					writer.Key("enabled");
+					writer.Bool(transform->IsEnabled());
+					WriteVector3(writer, "position", transform->position);
+					WriteVector3(writer, "rotation", transform->rotation);
+					WriteVector3(writer, "scale", transform->scale);
+					writer.EndObject();
+				}
+				else if (const SpriteComponent* sprite = dynamic_cast<const SpriteComponent*>(component.get()))
+				{
+					writer.StartObject();
+					writer.Key("type");
+					writer.String("Sprite");
+					writer.Key("enabled");
+					writer.Bool(sprite->IsEnabled());
+					writer.Key("texturePath");
+					writer.String(sprite->GetTexturePath().c_str(),
+						static_cast<rapidjson::SizeType>(sprite->GetTexturePath().size()));
+					writer.EndObject();
+				}
+			}
+			writer.EndArray();
 
 			writer.Key("children");
 			writer.StartArray();
@@ -146,6 +172,16 @@ namespace KE
 		return FindInTree(roots, objectId);
 	}
 
+	void Scene::Render(const glm::mat4& viewProjection)
+	{
+		const GLboolean depthTestEnabled = glIsEnabled(GL_DEPTH_TEST);
+		glDisable(GL_DEPTH_TEST);
+		for (const auto& object : roots)
+			object->Render(viewProjection, glm::mat4(1.0f));
+		if (depthTestEnabled)
+			glEnable(GL_DEPTH_TEST);
+	}
+
 	bool Scene::SaveToFile(const std::filesystem::path& path, std::string& error) const
 	{
 		error.clear();
@@ -228,7 +264,6 @@ namespace KE
 			!document.HasMember("format") || !document["format"].IsString() ||
 			std::string(document["format"].GetString()) != SceneFormat ||
 			!document.HasMember("version") || !document["version"].IsUint() ||
-			document["version"].GetUint() != SceneFormatVersion ||
 			!document.HasMember("name") || !document["name"].IsString() ||
 			!document.HasMember("objects") || !document["objects"].IsArray())
 		{
@@ -236,7 +271,15 @@ namespace KE
 			return nullptr;
 		}
 
-		std::unique_ptr<Scene> scene(new Scene(document["name"].GetString()));
+		const unsigned formatVersion = document["version"].GetUint();
+		if (formatVersion != LegacySceneFormatVersion && formatVersion != SceneFormatVersion)
+		{
+			error = "Scene has missing, invalid, or unsupported metadata";
+			return nullptr;
+		}
+
+		std::unique_ptr<Scene> scene(new Scene(std::string(
+			document["name"].GetString(), document["name"].GetStringLength())));
 		std::unordered_set<ObjectId> objectIds;
 		auto readObject = [&](const rapidjson::Value& source, GameObject* parent, unsigned depth, auto&& self) -> bool
 		{
@@ -249,7 +292,10 @@ namespace KE
 				!source.HasMember("id") || !source["id"].IsUint64() ||
 				!source.HasMember("name") || !source["name"].IsString() ||
 				!source.HasMember("active") || !source["active"].IsBool() ||
-				!source.HasMember("transform") || !source["transform"].IsObject() ||
+				(formatVersion == LegacySceneFormatVersion &&
+					(!source.HasMember("transform") || !source["transform"].IsObject())) ||
+				(formatVersion == SceneFormatVersion &&
+					(!source.HasMember("components") || !source["components"].IsArray())) ||
 				!source.HasMember("children") || !source["children"].IsArray())
 			{
 				error = "Scene object has missing or invalid fields";
@@ -264,15 +310,78 @@ namespace KE
 				return false;
 			}
 
-			Transform transform;
-			if (!ReadVector3(source["transform"], "position", transform.position, error) ||
-				!ReadVector3(source["transform"], "rotation", transform.rotation, error) ||
-				!ReadVector3(source["transform"], "scale", transform.scale, error))
-				return false;
-
-			std::unique_ptr<GameObject> object(new GameObject(scene.get(), objectId, source["name"].GetString()));
+			std::unique_ptr<GameObject> object(new GameObject(scene.get(), objectId,
+				std::string(source["name"].GetString(), source["name"].GetStringLength())));
 			object->active = source["active"].GetBool();
-			object->transform = transform;
+			if (formatVersion == LegacySceneFormatVersion)
+			{
+				Transform* transform = object->GetComponent<Transform>();
+				if (!ReadVector3(source["transform"], "position", transform->position, error) ||
+					!ReadVector3(source["transform"], "rotation", transform->rotation, error) ||
+					!ReadVector3(source["transform"], "scale", transform->scale, error))
+					return false;
+			}
+			else
+			{
+				bool hasTransform = false;
+				bool hasSprite = false;
+				for (const auto& component : source["components"].GetArray())
+				{
+					if (!component.IsObject() ||
+						!component.HasMember("type") || !component["type"].IsString() ||
+						!component.HasMember("enabled") || !component["enabled"].IsBool())
+					{
+						error = "Scene component has missing or invalid fields";
+						return false;
+					}
+
+					const std::string type(component["type"].GetString(), component["type"].GetStringLength());
+					if (type == "Transform")
+					{
+						if (hasTransform)
+						{
+							error = "Scene object contains more than one Transform component";
+							return false;
+						}
+						hasTransform = true;
+
+						Transform* transform = object->GetComponent<Transform>();
+						if (!ReadVector3(component, "position", transform->position, error) ||
+							!ReadVector3(component, "rotation", transform->rotation, error) ||
+							!ReadVector3(component, "scale", transform->scale, error))
+							return false;
+						transform->SetEnabled(component["enabled"].GetBool());
+					}
+					else if (type == "Sprite")
+					{
+						if (hasSprite || !component.HasMember("texturePath") ||
+							!component["texturePath"].IsString())
+						{
+							error = "Scene Sprite component has missing or invalid fields";
+							return false;
+						}
+						hasSprite = true;
+
+						SpriteComponent* sprite = object->AddComponent<SpriteComponent>();
+						sprite->SetTexturePath(std::string(
+							component["texturePath"].GetString(),
+							component["texturePath"].GetStringLength()));
+						sprite->SetEnabled(component["enabled"].GetBool());
+					}
+					else
+					{
+						error = "Scene contains an unsupported component type: " + type;
+						return false;
+					}
+				}
+
+				if (!hasTransform)
+				{
+					error = "Scene object is missing its Transform component";
+					return false;
+				}
+			}
+
 			GameObject* objectPointer = object.get();
 			if (parent)
 			{

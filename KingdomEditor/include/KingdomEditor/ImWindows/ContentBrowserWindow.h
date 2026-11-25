@@ -43,6 +43,7 @@ namespace Editor
 			fileIcon.LoadTexture(KE::Core::ICONS_DIR + "\\FileIcon.png");
 			cppIcon.LoadTexture(KE::Core::ICONS_DIR + "\\CppIcon.png");
 			jsonIcon.LoadTexture(KE::Core::ICONS_DIR + "\\JsonIcon.png");
+			sceneIcon.LoadTexture(KE::Core::ICONS_DIR + "\\SceneIcon.png");
 			shadersIcon.LoadTexture(KE::Core::ICONS_DIR + "\\ShadersIcon.png");
 			fontIcon.LoadTexture(KE::Core::ICONS_DIR + "\\TffIcon.png");
 			imageThumbnails.clear();
@@ -277,6 +278,8 @@ namespace Editor
 				return &cppIcon;
 			if (extension == ".json")
 				return &jsonIcon;
+			if (extension == ".scene")
+				return &sceneIcon;
 			if (extension == ".vert" || extension == ".frag" || extension == ".glsl" ||
 				extension == ".geom" || extension == ".tesc" || extension == ".tese" ||
 				extension == ".comp")
@@ -822,6 +825,7 @@ namespace Editor
 		KE::Sprite fileIcon;
 		KE::Sprite cppIcon;
 		KE::Sprite jsonIcon;
+		KE::Sprite sceneIcon;
 		KE::Sprite shadersIcon;
 		KE::Sprite fontIcon;
 		std::unordered_map<std::string, std::unique_ptr<KE::Texture>> imageThumbnails;

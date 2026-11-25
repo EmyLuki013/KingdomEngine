@@ -22,6 +22,8 @@ namespace KE
 		GLuint RBO;
 		GLuint rectVAO, rectVBO;
 		GLuint framebufferTexture;
+		int width;
+		int height;
 	};
 }
 

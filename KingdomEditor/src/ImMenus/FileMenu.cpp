@@ -10,11 +10,13 @@
 #include <shellapi.h>
 
 #include <KingdomEngine/ImGui/ImMenu.h>
+#include <KingdomEngine/Core/Application.h>
 #include <KingdomEngine/Core/Log.h>
 
 #include "KingdomEditor/DialogBox/SaveProjectDialogBox.h"
 #include "KingdomEditor/Project/ProjectManager.h"
 #include "KingdomEditor/Utils/Globals.h"
+#include "KingdomEditor/Utils/SceneFileUtils.h"
 
 namespace Editor
 {
@@ -51,7 +53,7 @@ namespace Editor
 
 			}
 
-			const auto* project = ProjectManager::Get().GetLoadedProject();
+			auto* project = ProjectManager::Get().GetLoadedProject();
 			if (ImGui::MenuItem("Open Project Directory", nullptr, false, project != nullptr))
 			{
 				const std::string& projectPath = project->properties.path;
@@ -65,7 +67,17 @@ namespace Editor
 
 			if (Item("Save Project"))
 			{
-				ProjectManager::Get().GetLoadedProject()->SaveKepFile();
+				if (project)
+				{
+					if (KE::Application* application = KE::Application::GetInstance())
+					{
+						std::string error;
+						if (!SceneFileUtils::SaveActiveScene(application->GetSceneManager(),
+							project->properties.path, project->properties.startupScene, error))
+							LOG_ERROR("Could not save active scene with the project: " + error);
+					}
+					project->SaveKepFile();
+				}
 			}
 			
 			if (Item("Save File"))

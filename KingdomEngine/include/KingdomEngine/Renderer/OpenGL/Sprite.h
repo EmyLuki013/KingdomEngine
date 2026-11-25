@@ -21,8 +21,9 @@ namespace KE
 		Sprite();
 		~Sprite();
 
-        void LoadTexture(const std::string& texturePath);
+        bool LoadTexture(const std::string& texturePath);
 		void Draw();
+		void Draw(const glm::mat4& modelTransform);
 		void Delete();
 		void SetPosition(float x, float y);
 		void SetScale(float scaleX, float scaleY);
@@ -41,7 +42,7 @@ namespace KE
 		glm::vec2 scale;
 		float rotationDegrees;
 
-		void Initialize(const std::string& texturePath);
+		void Initialize();
 	};
 }
 

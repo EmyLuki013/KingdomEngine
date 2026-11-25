@@ -13,20 +13,29 @@ namespace KE
 		Delete();
 	}
 
-	void Sprite::LoadTexture(const std::string& texturePath)
+	bool Sprite::LoadTexture(const std::string& texturePath)
 	{
-	    texture.LoadTexture(texturePath, "diffuse", 0, GL_UNSIGNED_BYTE);
-	    Initialize(texturePath);
+		if (!texture.LoadTexture(texturePath, "diffuse", 0, GL_UNSIGNED_BYTE))
+			return false;
+
+		Initialize();
+		return true;
 	}
 
 	void Sprite::Draw()
 	{
+		Draw(transform);
+	}
+
+	void Sprite::Draw(const glm::mat4& modelTransform)
+	{
 		shader.Activate();
 		texture.Bind();
+
 		vao.Bind();
 
 		GLuint transformLoc = glGetUniformLocation(shader.GetID(), "transform");
-		glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
+		glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(modelTransform));
 
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
@@ -62,7 +71,7 @@ namespace KE
 		transform = glm::rotate(transform, glm::radians(rotationDegrees), glm::vec3(0.0f, 0.0f, 1.0f));
 	}
 
-	void Sprite::Initialize(const std::string& texturePath)
+	void Sprite::Initialize()
 	{
 		float vertices[] = {
 			// positions          // texture coords

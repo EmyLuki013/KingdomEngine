@@ -19,6 +19,7 @@ namespace Editor
         std::string name = "My Project";
         std::string path = "";
         std::string kepFile = "";
+        std::string startupScene = "scenes/Main.scene";
         std::string engineCoreVersion = KE::Core::ENGINE_CORE_VERSION;
         KE::Color backgroundColor = KE::Renderer::GetClearColor();
         int glVersion = KE::GLVersion::OpenGL2;

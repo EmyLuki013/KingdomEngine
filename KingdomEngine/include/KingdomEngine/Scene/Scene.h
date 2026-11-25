@@ -27,6 +27,7 @@ namespace KE
 		GameObject* FindObject(ObjectId objectId);
 		const GameObject* FindObject(ObjectId objectId) const;
 		const std::vector<std::unique_ptr<GameObject>>& GetRootObjects() const { return roots; }
+		void Render(const glm::mat4& viewProjection);
 
 		bool SaveToFile(const std::filesystem::path& path, std::string& error) const;
 		static std::unique_ptr<Scene> LoadFromFile(const std::filesystem::path& path, std::string& error);

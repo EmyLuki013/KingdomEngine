@@ -38,6 +38,7 @@ namespace KE
 		Window& GetWindow() { return window; }
 		SceneManager& GetSceneManager() { return sceneManager; }
 		const SceneManager& GetSceneManager() const { return sceneManager; }
+		void SetSceneViewportSize(float width, float height);
 
 		void Run();
 		void Quit();
@@ -52,6 +53,8 @@ namespace KE
 		ImGuiEvent imguiEvent;
 		Sprite sprite;
 		SceneManager sceneManager;
+		float sceneViewportWidth = 1.0f;
+		float sceneViewportHeight = 1.0f;
 	};
 
 	Application* CreateApplication();

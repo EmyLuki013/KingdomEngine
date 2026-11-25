@@ -7,9 +7,9 @@
 
 #include "KingdomEditor/Project/ProjectManager.h"
 #include "KingdomEditor/Utils/SceneEditorContext.h"
+#include "KingdomEditor/Utils/SceneFileUtils.h"
 
 #include <algorithm>
-#include <cctype>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -104,7 +104,7 @@ namespace Editor
 			if (!ImGui::BeginCombo("Scene", preview.c_str()))
 				return;
 
-			const Project* project = ProjectManager::Get().GetLoadedProject();
+			Project* project = ProjectManager::Get().GetLoadedProject();
 			if (project)
 			{
 				const std::filesystem::path directory = std::filesystem::path(project->properties.path) / "scenes";
@@ -119,10 +119,8 @@ namespace Editor
 						std::error_code entryError;
 						if (iterator->is_regular_file(entryError) && !entryError)
 						{
-							const std::string filename = iterator->path().filename().string();
-							const std::string suffix = ".scene.json";
-							if (filename.size() >= suffix.size() &&
-								filename.compare(filename.size() - suffix.size(), suffix.size(), suffix) == 0)
+							if (SceneFileUtils::IsSceneFile(iterator->path()) ||
+								SceneFileUtils::IsLegacySceneFile(iterator->path()))
 								paths.push_back(iterator->path());
 						}
 						else if (entryError)
@@ -147,9 +145,20 @@ namespace Editor
 								return;
 							}
 
-							std::string loadError;
-							if (sceneManager.LoadScene(path, loadError))
+							std::filesystem::path loadPath = path;
+							std::string migrationError;
+							if (SceneFileUtils::IsLegacySceneFile(path))
 							{
+								if (!SceneFileUtils::MigrateLegacySceneFile(path, loadPath, migrationError))
+									LOG_WARN("Could not migrate scene file: " + migrationError);
+							}
+
+							std::string loadError;
+							if (sceneManager.LoadScene(loadPath, loadError))
+							{
+								project->properties.startupScene =
+									SceneFileUtils::ProjectRelativePath(loadPath, project->properties.path);
+								project->SaveKepFile();
 								selectedSceneObjectId = 0;
 								ImGui::EndCombo();
 								return;
@@ -167,81 +176,24 @@ namespace Editor
 			ImGui::EndCombo();
 		}
 
-		static std::string MakeSafeFileStem(const std::string& value)
-		{
-			std::string stem = value;
-			for (char& character : stem)
-			{
-				if (std::string("<>:\"/\\|?*").find(character) != std::string::npos)
-					character = '_';
-			}
-			while (!stem.empty() && (stem.back() == '.' || std::isspace((unsigned char)stem.back())))
-				stem.pop_back();
-			if (stem.empty() || stem == "." || stem == "..")
-				return "Scene";
-			return stem;
-		}
-
-		static bool FindScenePath(const KE::Scene& scene, std::filesystem::path& output, std::string& error)
-		{
-			const Project* project = ProjectManager::Get().GetLoadedProject();
-			if (!project)
-			{
-				error = "No project is open";
-				return false;
-			}
-
-			const std::filesystem::path directory = std::filesystem::path(project->properties.path) / "scenes";
-			std::error_code filesystemError;
-			std::filesystem::create_directories(directory, filesystemError);
-			if (filesystemError)
-			{
-				error = "Could not create scene directory: " + filesystemError.message();
-				return false;
-			}
-
-			const std::string stem = MakeSafeFileStem(scene.GetName());
-			for (unsigned suffix = 1; suffix < 10000; ++suffix)
-			{
-				const std::string filename = suffix == 1
-					? stem + ".scene.json"
-					: stem + " " + std::to_string(suffix) + ".scene.json";
-				output = directory / filename;
-				if (!std::filesystem::exists(output, filesystemError))
-				{
-					if (filesystemError)
-					{
-						error = "Could not check scene path: " + filesystemError.message();
-						return false;
-					}
-					return true;
-				}
-			}
-
-			error = "Could not find an unused scene filename";
-			return false;
-		}
-
 		static bool SaveScene(KE::SceneManager& sceneManager)
 		{
-			std::filesystem::path path = sceneManager.GetActiveScenePath();
-			std::string error;
-			if (path.empty())
+			Project* project = ProjectManager::Get().GetLoadedProject();
+			if (!project)
 			{
-				const KE::Scene* scene = sceneManager.GetActiveScene();
-				if (!scene || !FindScenePath(*scene, path, error))
-				{
-					LOG_ERROR("Could not save scene: " + error);
-					return false;
-				}
+				LOG_ERROR("Could not save scene: no project is open");
+				return false;
 			}
 
-			if (!sceneManager.SaveScene(path, error))
+			std::string error;
+			if (!SceneFileUtils::SaveActiveScene(sceneManager, project->properties.path,
+				project->properties.startupScene, error))
 			{
 				LOG_ERROR("Could not save scene: " + error);
 				return false;
 			}
-			LOG_INFO("Saved scene: " + path.string());
+			project->SaveKepFile();
+			LOG_INFO("Saved scene: " + sceneManager.GetActiveScenePath().string());
 			return true;
 		}
 
@@ -258,17 +210,23 @@ namespace Editor
 				}
 			}
 
-			KE::Scene& newScene = sceneManager.CreateScene("New Scene");
+			sceneManager.CreateScene("New Scene");
 			selectedSceneObjectId = 0;
-			std::filesystem::path path;
-			std::string error;
-			if (!FindScenePath(newScene, path, error))
+			Project* project = ProjectManager::Get().GetLoadedProject();
+			if (!project)
 			{
-				LOG_ERROR("Could not create scene: " + error);
+				LOG_ERROR("Could not create scene: no project is open");
 				return;
 			}
-			if (!sceneManager.SaveScene(path, error))
+
+			std::string error;
+			if (!SceneFileUtils::SaveActiveScene(sceneManager, project->properties.path,
+				project->properties.startupScene, error))
 				LOG_ERROR("Could not create scene: " + error);
+			else
+			{
+				project->SaveKepFile();
+			}
 		}
 
 		static void RenderObject(KE::GameObject& object)

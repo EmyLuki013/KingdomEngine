@@ -9,8 +9,10 @@
 #include <KingdomEngine/Core/JSON.h>
 #include <KingdomEngine/Core/Dictionary.h>
 #include <KingdomEngine/Core/Color.h>
+#include <KingdomEngine/Scene/Component.h>
 #include <KingdomEngine/Scene/Transform.h>
 #include <KingdomEngine/Scene/GameObject.h>
+#include <KingdomEngine/Scene/SpriteComponent.h>
 #include <KingdomEngine/Scene/Scene.h>
 #include <KingdomEngine/Scene/SceneManager.h>
 

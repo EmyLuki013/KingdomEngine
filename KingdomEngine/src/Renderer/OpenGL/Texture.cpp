@@ -9,11 +9,12 @@ namespace KE
 
 	}
 
-	void Texture::LoadTexture(const std::string& imagePath, const std::string& textureType, GLenum slot, GLenum pixelType)
+	bool Texture::LoadTexture(const std::string& imagePath, const std::string& textureType, GLenum slot, GLenum pixelType)
 	{
         //LOAD IMAGE
         type = textureType;
-		int widthImg, heightImg;
+		int widthImg = 0;
+		int heightImg = 0;
 		stbi_set_flip_vertically_on_load(true);
 		unsigned char* bytes = stbi_load(imagePath.c_str(), &widthImg, &heightImg, nullptr, STBI_rgb_alpha);
 
@@ -26,10 +27,19 @@ namespace KE
 		{
 			LOG_ERROR("Failed to load texture: " + imagePath);
 			LOG_ERROR("ERROR: " + std::string(stbi_failure_reason()));
-			return;
+			return false;
+		}
+
+		if (widthImg <= 0 || heightImg <= 0)
+		{
+			stbi_image_free(bytes);
+			LOG_ERROR("Texture has invalid dimensions: " + imagePath);
+			return false;
 		}
 
 		//GENERATE TEXTURE AND DEFINES FILTERS
+		if (ID != 0)
+			glDeleteTextures(1, &ID);
 		glGenTextures(1, &ID);
 		glActiveTexture(GL_TEXTURE0 + slot);
 		unit = slot;
@@ -51,6 +61,7 @@ namespace KE
 
 		stbi_image_free(bytes);
 		glBindTexture(GL_TEXTURE_2D, 0);
+		return ID != 0;
 	}
 
 	void Texture::TextureUnit(Shader& shader, const std::string& uniform, GLuint unit)

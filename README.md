@@ -13,10 +13,15 @@ A game engine!
 
 ## Scenes
 When a project is opened in KingdomEditor, the editor loads or creates
-`scenes/Main.scene.json`. The Objects window lets you create scenes and
+`scenes/Main.scene`. The Objects window lets you create scenes and
 hierarchical game objects; the Properties window edits an object's name,
-active state, and transform. Scene files use versioned JSON and are saved from
-the Objects window.
+active state, and transform. Saving the project also saves the active scene and
+remembers it for the next time the project is opened. Scene files use versioned
+JSON and can also be saved from the Objects window. Older `.scene.json` files
+are renamed to `.scene` when loaded, when possible.
 
-This initial scene system covers hierarchy, transforms, and persistence.
-Rendering and general-purpose components are not connected to scenes yet.
+Every GameObject has a Transform component. The Properties window's Add
+Component menu can add a Sprite, and its texture picker opens at the project
+directory for selecting an image. Enabled sprites are rendered into the live
+viewport using the GameObject hierarchy and transforms. The initial component
+set is limited to Transform and Sprite.

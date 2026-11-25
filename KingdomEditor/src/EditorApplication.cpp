@@ -5,6 +5,7 @@
 #include "KingdomEditor/DialogBox/BuildErrorDialogBox.h"
 #include "KingdomEditor/Utils/Globals.h"
 #include "KingdomEditor/Utils/SceneEditorContext.h"
+#include "KingdomEditor/Utils/SceneFileUtils.h"
 #include "KingdomEditor/Project/ProjectBuild.h"
 
 namespace Editor
@@ -106,7 +107,31 @@ namespace Editor
                 }
                 else
                 {
-                    const std::filesystem::path defaultScenePath = sceneDirectory / "Main.scene.json";
+                    const std::filesystem::path mainScenePath = sceneDirectory / "Main.scene";
+                    std::filesystem::path defaultScenePath = project->properties.startupScene.empty()
+                        ? mainScenePath
+                        : std::filesystem::path(project->properties.startupScene);
+                    if (!defaultScenePath.is_absolute())
+                        defaultScenePath = sceneProjectPath / defaultScenePath;
+
+                    std::error_code startupSceneError;
+                    if (!std::filesystem::exists(defaultScenePath, startupSceneError) && !startupSceneError)
+                    {
+                        if (defaultScenePath.lexically_normal() != mainScenePath.lexically_normal())
+                        {
+                            LOG_WARN("Configured startup scene was not found; opening Main.scene instead");
+                            project->properties.startupScene =
+                                SceneFileUtils::ProjectRelativePath(mainScenePath, sceneProjectPath);
+                            project->SaveKepFile();
+                        }
+                        defaultScenePath = mainScenePath;
+                    }
+                    else if (startupSceneError)
+                    {
+                        LOG_ERROR("Could not check the startup scene path: " + startupSceneError.message());
+                        defaultScenePath = mainScenePath;
+                    }
+
                     const bool sceneExists = std::filesystem::exists(defaultScenePath, error);
                     if (error)
                     {
@@ -124,10 +149,34 @@ namespace Editor
                     }
                     else
                     {
-                        sceneManager.CreateScene("Main");
-                        std::string saveError;
-                        if (!sceneManager.SaveScene(defaultScenePath, saveError))
-                            LOG_ERROR("Could not create the project's default scene: " + saveError);
+                        const std::filesystem::path legacyScenePath = sceneDirectory / "Main.scene.json";
+                        const bool legacySceneExists = std::filesystem::exists(legacyScenePath, error);
+                        if (error)
+                        {
+                            LOG_ERROR("Could not check the legacy default scene path: " + error.message());
+                            sceneManager.CreateScene("Main");
+                        }
+                        else if (legacySceneExists)
+                        {
+                            std::filesystem::path scenePath = legacyScenePath;
+                            std::string migrationError;
+                            if (!SceneFileUtils::MigrateLegacySceneFile(legacyScenePath, scenePath, migrationError))
+                                LOG_WARN("Could not migrate the legacy default scene: " + migrationError);
+
+                            std::string loadError;
+                            if (!sceneManager.LoadScene(scenePath, loadError))
+                            {
+                                LOG_ERROR("Could not load the project's default scene: " + loadError);
+                                sceneManager.CreateScene("Main");
+                            }
+                        }
+                        else
+                        {
+                            sceneManager.CreateScene("Main");
+                            std::string saveError;
+                            if (!sceneManager.SaveScene(defaultScenePath, saveError))
+                                LOG_ERROR("Could not create the project's default scene: " + saveError);
+                        }
                     }
                 }
             }
