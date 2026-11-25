@@ -20,8 +20,15 @@ namespace KE
 	class Log
 	{
 	public:
+		struct Message
+		{
+			spdlog::level::level_enum level;
+			std::string text;
+		};
+
 		static void Init(const std::string& logsFileName);
 		static std::vector<std::string> GetMessages();
+		static std::vector<Message> GetLogMessages();
 		static void ClearMessages();
 
 		static std::shared_ptr<spdlog::logger>& GetLogger() { return logger; }

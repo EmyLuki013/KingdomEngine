@@ -19,6 +19,7 @@ namespace Editor
 		{
 			properties.flags |= ImGuiWindowFlags_HorizontalScrollbar;
 			fileIsLoaded = false;
+			fileModified = false;
 			cppFile = "";
 		}
 
@@ -93,6 +94,32 @@ namespace Editor
 			editor.SetText(contents);
 			cppFile = std::filesystem::path(filePath).string();
 			fileIsLoaded = true;
+			fileModified = false;
+			return true;
+		}
+
+		bool SaveFile()
+		{
+			if (!fileIsLoaded || cppFile.empty())
+				return false;
+
+			KE::File file;
+			file.Open(cppFile, KE::ModeFlags::WRITE);
+			if (!file.IsOpen())
+				return false;
+
+			file.Write(editor.GetText());
+			file.GetFile().flush();
+			const bool writeSucceeded = file.GetFile().good();
+			file.Close();
+			if (!writeSucceeded)
+			{
+				LOG_ERROR("Could not save file: " + cppFile);
+				return false;
+			}
+
+			fileModified = false;
+			LOG_INFO("Saved file: " + cppFile);
 			return true;
 		}
 
@@ -115,21 +142,14 @@ namespace Editor
 			if (!ProjectManager::Get().GetLoadedProject() && fileIsLoaded)
 			{
 				fileIsLoaded = false;
+				fileModified = false;
 			}
 			
-			//save text
-			if (ProjectManager::Get().GetLoadedProject() && fileIsLoaded && Globals::CAN_SAVE_FILE)
-			{
-				auto textToSave = editor.GetText();
-				
-				KE::File fileToSave;
-				fileToSave.Open(cppFile, KE::ModeFlags::WRITE);
-				LOG_INFO(cppFile);
-				fileToSave.Write(textToSave);
-				fileToSave.Close();
-				
-				Globals::CAN_SAVE_FILE = false;
-			}
+			ImGuiIO& io = ImGui::GetIO();
+			const bool saveRequested = Globals::CAN_SAVE_FILE ||
+				(fileIsLoaded && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
+					io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false));
+			Globals::CAN_SAVE_FILE = false;
 			
 			if (KE::ImGuiManager::Get().GetTheme() == KE::DEFAULT)
 				editor.SetPalette(TextEditor::GetDarkPalette());
@@ -143,15 +163,20 @@ namespace Editor
 			
 			ImGui::Text("%6d/%-6d %6d lines  | %s | %s | %s | %s", cpos.mLine + 1, cpos.mColumn + 1, editor.GetTotalLines(),
 			editor.IsOverwrite() ? "Ovr" : "Ins",
-			editor.CanUndo() ? "*" : " ",
+			fileModified ? "*" : " ",
 				editor.GetLanguageDefinition().mName.c_str(), fileName.c_str());
 
 			editor.Render("TextEditor");
+			if (editor.IsTextChanged())
+				fileModified = true;
+			if (saveRequested)
+				SaveFile();
 		}
 		
 	private:
 		TextEditor editor;
 		bool fileIsLoaded;
+		bool fileModified;
 		std::string cppFile;
 		
 	};

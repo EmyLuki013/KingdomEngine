@@ -21,11 +21,15 @@ namespace KE
 		void Delete();
 		
 		GLuint GetID() const { return ID; }
+		int GetWidth() const { return width; }
+		int GetHeight() const { return height; }
 
 	private:
 		GLuint ID;
 		GLuint unit;
 		GLenum format;
+		int width;
+		int height;
 
 	};
 }

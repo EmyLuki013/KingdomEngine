@@ -1,5 +1,7 @@
 #include "KingdomEngine/ImGui/ImMenuManager.h"
 
+#include <algorithm>
+
 namespace KE
 {
 	ImMenuManager &ImMenuManager::Get()
@@ -11,6 +13,20 @@ namespace KE
 	void ImMenuManager::Register(ImMenu *imMenu_)
 	{
 		menus.push_back(imMenu_);
+		auto order = [](const ImMenu* menu)
+		{
+			if (menu->properties.label == "File")
+				return 0;
+			if (menu->properties.label == "Run")
+				return 1;
+			if (menu->properties.label == "Window")
+				return 2;
+			return 3;
+		};
+		std::stable_sort(menus.begin(), menus.end(), [&order](const ImMenu* left, const ImMenu* right)
+		{
+			return order(left) < order(right);
+		});
 		menusMap[imMenu_->properties.label] = imMenu_;
 	}
 

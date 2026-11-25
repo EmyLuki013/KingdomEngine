@@ -14,10 +14,10 @@ namespace KE
 		class MemorySink final : public spdlog::sinks::base_sink<std::mutex>
 		{
 		public:
-			std::vector<std::string> GetMessages()
+			std::vector<Log::Message> GetMessages()
 			{
 				std::lock_guard<std::mutex> lock(mutex_);
-				return std::vector<std::string>(messages_.begin(), messages_.end());
+				return std::vector<Log::Message>(messages_.begin(), messages_.end());
 			}
 
 			void ClearMessages()
@@ -33,7 +33,10 @@ namespace KE
 				formatter_->format(message, formatted);
 				if (messages_.size() == maxMessages)
 					messages_.pop_front();
-				messages_.emplace_back(formatted.data(), formatted.size());
+				messages_.push_back(Log::Message{
+					message.level,
+					std::string(formatted.data(), formatted.size())
+				});
 			}
 
 			void flush_() override
@@ -42,7 +45,7 @@ namespace KE
 
 		private:
 			static constexpr size_t maxMessages = 5000;
-			std::deque<std::string> messages_;
+			std::deque<Log::Message> messages_;
 		};
 
 		std::shared_ptr<MemorySink> memorySink;
@@ -68,7 +71,17 @@ namespace KE
 
 	std::vector<std::string> Log::GetMessages()
 	{
-		return memorySink ? memorySink->GetMessages() : std::vector<std::string>{};
+		const auto entries = GetLogMessages();
+		std::vector<std::string> messages;
+		messages.reserve(entries.size());
+		for (const auto& entry : entries)
+			messages.push_back(entry.text);
+		return messages;
+	}
+
+	std::vector<Log::Message> Log::GetLogMessages()
+	{
+		return memorySink ? memorySink->GetMessages() : std::vector<Log::Message>{};
 	}
 
 	void Log::ClearMessages()

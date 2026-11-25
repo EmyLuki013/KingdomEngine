@@ -63,6 +63,10 @@ namespace Editor
 				projectPath.clear();
 				currentDirectory.clear();
 				selectedItems.clear();
+				renamePopupRequested = false;
+				createPopupRequested = false;
+				imagePreviewPath.clear();
+				imagePreviewOpen = false;
 				return;
 			}
 
@@ -72,6 +76,8 @@ namespace Editor
 				currentDirectory = projectPath;
 				selectedItems.clear();
 				selectionAnchor.clear();
+				imagePreviewPath.clear();
+				imagePreviewOpen = false;
 			}
 
 			if (!std::filesystem::exists(currentDirectory))
@@ -145,7 +151,10 @@ namespace Editor
 				const bool clicked = ImGui::ImageButton(filename.c_str(), textureId, { thumbnailSize, thumbnailSize }, { 0, 1 }, { 1, 0 });
 				const bool doubleClicked = ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
 				if (clicked)
+				{
 					SelectItem(path, entries);
+					UpdateImagePreview(path);
+				}
 				if (doubleClicked)
 				{
 					if (isDirectory)
@@ -183,7 +192,10 @@ namespace Editor
 				const bool labelClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
 				const bool labelDoubleClicked = ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
 				if (labelClicked)
+				{
 					SelectItem(path, entries);
+					UpdateImagePreview(path);
+				}
 				if (labelDoubleClicked)
 				{
 					if (isDirectory)
@@ -207,10 +219,12 @@ namespace Editor
 
 			ImGui::Columns(1);
 			if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
-				!ImGui::IsAnyItemHovered() && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId))
+				!ImGui::IsAnyItemHovered())
 			{
 				selectedItems.clear();
 				selectionAnchor.clear();
+				imagePreviewPath.clear();
+				imagePreviewOpen = false;
 			}
 			if (!selectedItems.empty())
 				ImGui::Text("%zu selected", selectedItems.size());
@@ -218,6 +232,7 @@ namespace Editor
 			RenderCreationMenu();
 			RenderCreationPopup();
 			RenderRenamePopup();
+			RenderImagePreview();
 		}
 
 	private:
@@ -291,11 +306,27 @@ namespace Editor
 			return std::find(selectedItems.begin(), selectedItems.end(), path) != selectedItems.end();
 		}
 
+		void UpdateImagePreview(const std::filesystem::path& path)
+		{
+			if (IsImageFile(path) && IsSelected(path))
+			{
+				imagePreviewPath = path;
+				imagePreviewOpen = true;
+			}
+			else
+			{
+				imagePreviewPath.clear();
+				imagePreviewOpen = false;
+			}
+		}
+
 		void NavigateTo(const std::filesystem::path& path)
 		{
 			currentDirectory = path;
 			selectedItems.clear();
 			selectionAnchor.clear();
+			imagePreviewPath.clear();
+			imagePreviewOpen = false;
 		}
 
 		void HandleKeyboardShortcuts()
@@ -405,11 +436,17 @@ namespace Editor
 			const char* defaultName = creatingDirectory ? "New Folder" : "NewFile.cpp";
 			std::strncpy(newItemName, defaultName, sizeof(newItemName) - 1);
 			newItemName[sizeof(newItemName) - 1] = '\0';
-			ImGui::OpenPopup("Create Content Browser Item");
+			createPopupRequested = true;
 		}
 
 		void RenderCreationPopup()
 		{
+			if (createPopupRequested)
+			{
+				ImGui::OpenPopup("Create Content Browser Item");
+				createPopupRequested = false;
+			}
+
 			if (!ImGui::BeginPopupModal("Create Content Browser Item", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
 				return;
 
@@ -491,11 +528,17 @@ namespace Editor
 			const std::string filename = path.filename().string();
 			std::strncpy(renameItemName, filename.c_str(), sizeof(renameItemName) - 1);
 			renameItemName[sizeof(renameItemName) - 1] = '\0';
-			ImGui::OpenPopup("Rename Content Browser Item");
+			renamePopupRequested = true;
 		}
 
 		void RenderRenamePopup()
 		{
+			if (renamePopupRequested)
+			{
+				ImGui::OpenPopup("Rename Content Browser Item");
+				renamePopupRequested = false;
+			}
+
 			if (!ImGui::BeginPopupModal("Rename Content Browser Item", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
 				return;
 
@@ -525,6 +568,8 @@ namespace Editor
 							LOG_INFO("Renamed item to: " + newPath.string());
 							selectedItems.clear();
 							selectionAnchor.clear();
+							imagePreviewPath.clear();
+							imagePreviewOpen = false;
 							ImGui::CloseCurrentPopup();
 						}
 					}
@@ -536,6 +581,32 @@ namespace Editor
 			if (ImGui::Button("Cancel"))
 				ImGui::CloseCurrentPopup();
 			ImGui::EndPopup();
+		}
+
+		void RenderImagePreview()
+		{
+			if (!imagePreviewOpen || imagePreviewPath.empty())
+				return;
+
+			KE::Texture* texture = GetImageThumbnail(imagePreviewPath);
+			if (!texture || texture->GetWidth() <= 0 || texture->GetHeight() <= 0)
+				return;
+
+			ImGui::SetNextWindowSize(ImVec2(460.0f, 360.0f), ImGuiCond_FirstUseEver);
+			if (ImGui::Begin("Image Preview", &imagePreviewOpen, ImGuiWindowFlags_AlwaysAutoResize))
+			{
+				const std::string filename = imagePreviewPath.filename().string();
+				ImGui::TextUnformatted(filename.c_str());
+
+				const float maxWidth = 440.0f;
+				const float maxHeight = 300.0f;
+				const float scale = std::min({ 1.0f, maxWidth / texture->GetWidth(), maxHeight / texture->GetHeight() });
+				const ImVec2 imageSize(texture->GetWidth() * scale, texture->GetHeight() * scale);
+				ImGui::Image((ImTextureID)(uintptr_t)texture->GetID(), imageSize, ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
+			}
+			ImGui::End();
+			if (!imagePreviewOpen)
+				imagePreviewPath.clear();
 		}
 
 		void SetClipboard(bool cut)
@@ -658,6 +729,8 @@ namespace Editor
 			}
 			selectedItems.clear();
 			selectionAnchor.clear();
+			imagePreviewPath.clear();
+			imagePreviewOpen = false;
 			if (!std::filesystem::exists(currentDirectory))
 				currentDirectory = projectPath;
 		}
@@ -742,6 +815,7 @@ namespace Editor
 		std::filesystem::path projectPath;
 		std::filesystem::path selectionAnchor;
 		std::filesystem::path renamePath;
+		std::filesystem::path imagePreviewPath;
 		std::vector<std::filesystem::path> selectedItems;
 		std::vector<std::filesystem::path> clipboardItems;
 		KE::Sprite directoryIcon;
@@ -755,6 +829,9 @@ namespace Editor
 		char renameItemName[256];
 		bool creatingDirectory;
 		bool clipboardIsCut;
+		bool renamePopupRequested = false;
+		bool createPopupRequested = false;
+		bool imagePreviewOpen = false;
 	};
 }
 

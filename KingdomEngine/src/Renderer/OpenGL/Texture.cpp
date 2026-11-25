@@ -4,7 +4,7 @@
 namespace KE
 {
 	Texture::Texture()
-		: ID(0), unit(0), type("")
+		: type(""), ID(0), unit(0), format(GL_RGBA), width(0), height(0)
 	{
 
 	}
@@ -46,6 +46,8 @@ namespace KE
 		//CREATE TEXTURE AND GENERATE MIPMAP
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, widthImg, heightImg, 0, format, pixelType, bytes);
 		glGenerateMipmap(GL_TEXTURE_2D);
+		width = widthImg;
+		height = heightImg;
 
 		stbi_image_free(bytes);
 		glBindTexture(GL_TEXTURE_2D, 0);
@@ -72,5 +74,8 @@ namespace KE
 	void Texture::Delete()
 	{
 		glDeleteTextures(1, &ID);
+		ID = 0;
+		width = 0;
+		height = 0;
 	}
 }
