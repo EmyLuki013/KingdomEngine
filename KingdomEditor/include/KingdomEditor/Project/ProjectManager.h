@@ -17,6 +17,7 @@ namespace Editor
 		void SaveProjectsFile();
 		void OpenProjectsFile();
 		void AddProject(Project& project);
+		bool ImportProject(const std::string& kepFilePath);
 		void LoadProject(const std::string& projectName);
 		void UnloadProject();
 		void RunProject();

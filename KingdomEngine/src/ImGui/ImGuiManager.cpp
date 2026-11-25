@@ -1,6 +1,7 @@
 #include "KingdomEngine/ImGui/ImGuiManager.h"
 #include "KingdomEngine/Core/Log.h"
 #include "KingdomEngine/Events/Event.h"
+#include "KingdomEngine/ImGui/ImWindowManager.h"
 
 namespace KE
 {
@@ -8,6 +9,7 @@ namespace KE
     : window(nullptr),
       isEnabled(false),
       dockspaceIsEnabled(false),
+      dockspaceInitialized(false),
       newFrameIsCalled(false),
       dockspaceID(0),
       dockSides{},
@@ -87,6 +89,7 @@ namespace KE
 			}
 
 			isEnabled = true;
+			dockspaceInitialized = false;
 			LOG_INFO("ImGui was enabled");
 		}
 	}
@@ -108,6 +111,7 @@ namespace KE
 			ImGui::DestroyContext();
 
 			isEnabled = false;
+			dockspaceInitialized = false;
 			newFrameIsCalled = false;
 			LOG_INFO("ImGui was disabled");
 		}
@@ -186,17 +190,23 @@ namespace KE
 			ImGui::Begin("MainDockSpace", nullptr, window_flags);
 
 			dockspaceID = ImGui::GetID("MainDockSpace");
-			ImGui::DockBuilderRemoveNode(dockspaceID);
-			ImGui::DockBuilderAddNode(dockspaceID, ImGuiDockNodeFlags_DockSpace);
+			if (!dockspaceInitialized)
+			{
+				ImGui::DockBuilderRemoveNode(dockspaceID);
+				ImGui::DockBuilderAddNode(dockspaceID, ImGuiDockNodeFlags_DockSpace);
+				ImGui::DockBuilderSetNodeSize(dockspaceID, viewport->Size);
 
-			ImGui::DockBuilderSetNodeSize(dockspaceID, ImGui::GetIO().DisplaySize);
+				dockSides.dock_main = dockspaceID;
+				dockSides.dock_left = ImGui::DockBuilderSplitNode(dockSides.dock_main, ImGuiDir_Left, 0.2f, nullptr, &dockSides.dock_main);
+				dockSides.dock_right = ImGui::DockBuilderSplitNode(dockSides.dock_main, ImGuiDir_Right, 0.15f, nullptr, &dockSides.dock_main);
+				dockSides.dock_down = ImGui::DockBuilderSplitNode(dockSides.dock_main, ImGuiDir_Down, 0.15f, nullptr, &dockSides.dock_main);
+				dockSides.dock_left_top = ImGui::DockBuilderSplitNode(dockSides.dock_left, ImGuiDir_Up, 0.5f, nullptr, &dockSides.dock_left);
+				dockSides.dock_left_bottom = dockSides.dock_left;
 
-			dockSides.dock_main = dockspaceID;
-			dockSides.dock_left = ImGui::DockBuilderSplitNode(dockSides.dock_main, ImGuiDir_Left, 0.2f, nullptr, &dockSides.dock_main);
-			dockSides.dock_right = ImGui::DockBuilderSplitNode(dockSides.dock_main, ImGuiDir_Right, 0.15f, nullptr, &dockSides.dock_main);
-			dockSides.dock_down = ImGui::DockBuilderSplitNode(dockSides.dock_main, ImGuiDir_Down, 0.15f, nullptr, &dockSides.dock_main);
-			dockSides.dock_left_top = ImGui::DockBuilderSplitNode(dockSides.dock_left, ImGuiDir_Up, 0.5f, nullptr, &dockSides.dock_left);
-			dockSides.dock_left_bottom = dockSides.dock_left;
+				ImWindowManager::Get().UpdateAllWindowsDockspace(*this);
+				ImGui::DockBuilderFinish(dockspaceID);
+				dockspaceInitialized = true;
+			}
 		}
 	}
 
@@ -206,7 +216,6 @@ namespace KE
 		{
 			static ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
 
-			ImGui::DockBuilderFinish(dockspaceID);
 			ImGui::PopStyleVar(2);
 
 			//setting dockspace

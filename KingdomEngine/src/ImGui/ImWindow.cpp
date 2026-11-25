@@ -4,6 +4,7 @@
 namespace KE
 {
 	ImWindow::ImWindow(const std::string& name, float xPos, float yPos, float xSize, float ySize, bool visible, bool isFocus, DockSide dockSide)
+		: focusRequested(false)
 	{
 		properties.position = ImVec2(xPos, yPos);
 		properties.size = ImVec2(xSize, ySize);
@@ -34,14 +35,21 @@ namespace KE
 
 		if (properties.isVisible)
 		{
-		    if (properties.isFocus)
+		    if (properties.isFocus || focusRequested)
             {
                 ImGui::SetNextWindowFocus();
             }
 
             ImGui::Begin(properties.name.c_str(), &properties.isVisible, properties.flags);
+			focusRequested = false;
             OnRender();
             ImGui::End();
 		}
+	}
+
+	void ImWindow::Focus()
+	{
+		properties.isVisible = true;
+		focusRequested = true;
 	}
 }

@@ -46,6 +46,7 @@ namespace KE
 
 		bool IsEnabled() const { return isEnabled; }
 		bool DockspaceIsEnabled() const { return dockspaceIsEnabled; }
+		bool DockspaceIsInitialized() const { return dockspaceInitialized; }
 		bool NewFrameIsCalled() { return newFrameIsCalled; }
 		ImGuiID GetDockspaceID() { return dockspaceID; }
 		DockSides& GetDockSides() { return dockSides; }
@@ -60,6 +61,7 @@ namespace KE
 		SDL_Window* window;
 		bool isEnabled;
 		bool dockspaceIsEnabled;
+		bool dockspaceInitialized;
 		bool newFrameIsCalled;
 		ImGuiID dockspaceID;
 		DockSides dockSides;

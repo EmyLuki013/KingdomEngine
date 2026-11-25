@@ -2,6 +2,12 @@
 #include "KingdomEditor/Utils/Globals.h"
 #include "KingdomEditor/Utils/FileGenerator.h"
 
+#include <filesystem>
+#include <fstream>
+#include <algorithm>
+#include <cctype>
+#include <rapidjson/document.h>
+
 namespace Editor
 {
     ProjectManager &ProjectManager::Get()
@@ -97,10 +103,6 @@ namespace Editor
             subDir.Create(project.properties.path + "\\src");
             subDir.Create(project.properties.path + "\\build");
 
-            //copy engine resources dir to project dir
-            KE::Directory resourcesDir;
-            resourcesDir.Copy(KE::Core::RESOURCES_DIR, project.properties.path + "\\resources");
-
             //create project main cpp file
             KE::File cppFile;
             std::string projectName = project.properties.name;
@@ -119,6 +121,94 @@ namespace Editor
         }
 
         PushProject(project);
+    }
+
+    bool ProjectManager::ImportProject(const std::string& kepFilePath)
+    {
+        namespace fs = std::filesystem;
+        const fs::path importedFile = fs::path(kepFilePath).lexically_normal();
+        std::string extension = importedFile.extension().string();
+        std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char character)
+        {
+            return static_cast<char>(std::tolower(character));
+        });
+        if (extension != ".kep")
+        {
+            LOG_ERROR("Selected file is not a Kingdom Engine project (.kep): " + kepFilePath);
+            return false;
+        }
+
+        std::error_code error;
+        if (!fs::is_regular_file(importedFile, error))
+        {
+            LOG_ERROR("Could not read project file: " + importedFile.string() +
+                (error ? " (" + error.message() + ")" : ""));
+            return false;
+        }
+
+        std::ifstream file(importedFile, std::ios::binary);
+        if (!file)
+        {
+            LOG_ERROR("Could not open project file: " + importedFile.string());
+            return false;
+        }
+
+        const std::string contents((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        if (contents.empty() || file.bad())
+        {
+            LOG_ERROR("Project file is empty or could not be read: " + importedFile.string());
+            return false;
+        }
+
+        rapidjson::Document projectJson;
+        projectJson.Parse(contents.c_str());
+        if (projectJson.HasParseError() || !projectJson.IsObject() ||
+            !projectJson.HasMember("project") || !projectJson["project"].IsObject() ||
+            !projectJson["project"].HasMember("name") || !projectJson["project"]["name"].IsString())
+        {
+            LOG_ERROR("Project file does not contain valid project metadata: " + importedFile.string());
+            return false;
+        }
+
+        const std::string projectName = projectJson["project"]["name"].GetString();
+        if (projectName.empty())
+        {
+            LOG_ERROR("Project file has an empty project name: " + importedFile.string());
+            return false;
+        }
+
+        for (const Project* existingProject : projects)
+        {
+            if (existingProject->properties.name != projectName)
+                continue;
+
+            const fs::path existingFile = fs::path(existingProject->properties.path) /
+                existingProject->properties.kepFile;
+            error.clear();
+            if (fs::equivalent(existingFile, importedFile, error) && !error)
+            {
+                LOG_INFO("Project is already in the project list: " + projectName);
+                return true;
+            }
+
+            LOG_ERROR("A different project with this name is already registered: " + projectName);
+            return false;
+        }
+
+        const std::string projectDirectory = importedFile.parent_path().string();
+        const std::string projectFileName = importedFile.filename().string();
+        Project importedProject(projectName, projectDirectory, projectFileName);
+
+        KE::Dictionary projectDictionary;
+        projectDictionary.Add("kep_file", projectFileName);
+        projectDictionary.Add("engine_core_version", importedProject.properties.engineCoreVersion);
+        projectDictionary.Add("path", projectDirectory);
+        projectsJson.AddDicionary(projectName, projectDictionary);
+        PushProject(importedProject);
+        SaveProjectsFile();
+
+        LOG_INFO("Imported project: " + projectName + " from " + importedFile.string());
+        return true;
     }
 
     void ProjectManager::LoadProject(const std::string &projectName)

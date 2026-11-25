@@ -43,8 +43,12 @@ namespace KE
 
         virtual void OnReady() = 0;
 		virtual void OnRender() = 0;
+        void Focus();
 
 		ImWindowProperties properties;
+
+	private:
+        bool focusRequested;
 
 	};
 }

@@ -8,6 +8,8 @@
 #include "KingdomEditor/Project/ProjectManager.h"
 #include "KingdomEditor/Utils/Globals.h"
 
+#include <filesystem>
+
 namespace Editor
 {
 	class CodeEditorWindow : public KE::ImWindow
@@ -89,7 +91,7 @@ namespace Editor
 			}
 
 			editor.SetText(contents);
-			cppFile = filePath;
+			cppFile = std::filesystem::path(filePath).string();
 			fileIsLoaded = true;
 			return true;
 		}
@@ -137,11 +139,12 @@ namespace Editor
 				editor.SetPalette(TextEditor::GetLightPalette());
 			
 			auto cpos = editor.GetCursorPosition();
+				const std::string fileName = std::filesystem::path(cppFile).filename().string();
 			
 			ImGui::Text("%6d/%-6d %6d lines  | %s | %s | %s | %s", cpos.mLine + 1, cpos.mColumn + 1, editor.GetTotalLines(),
 			editor.IsOverwrite() ? "Ovr" : "Ins",
 			editor.CanUndo() ? "*" : " ",
-			editor.GetLanguageDefinition().mName.c_str(), cppFile.c_str());
+				editor.GetLanguageDefinition().mName.c_str(), fileName.c_str());
 
 			editor.Render("TextEditor");
 		}

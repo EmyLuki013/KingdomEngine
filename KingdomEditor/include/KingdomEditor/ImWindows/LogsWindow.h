@@ -4,6 +4,8 @@
 #include <KingdomEngine/ImGui/ImWindow.h>
 #include <KingdomEngine/Core/Log.h>
 
+#include <string>
+
 namespace Editor
 {
 	class LogsWindow : public KE::ImWindow
@@ -22,6 +24,18 @@ namespace Editor
 		{
 			if (ImGui::Button("Clear Logs"))
 				KE::Log::ClearMessages();
+			ImGui::SameLine();
+			if (ImGui::Button("Copy Logs"))
+			{
+				const std::vector<std::string> messages = KE::Log::GetMessages();
+				std::string copiedLogs;
+				for (const std::string& message : messages)
+				{
+					copiedLogs.append(message);
+					copiedLogs.push_back('\n');
+				}
+				ImGui::SetClipboardText(copiedLogs.c_str());
+			}
 
 			ImGui::Separator();
 

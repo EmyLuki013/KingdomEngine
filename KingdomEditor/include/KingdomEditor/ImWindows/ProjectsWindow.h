@@ -1,6 +1,17 @@
 #ifndef PROJECTS_WINDOW_H
 #define PROJECTS_WINDOW_H
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
+#include <windows.h>
+#include <commdlg.h>
+
 #include <KingdomEngine/ImGui/ImWindow.h>
 
 #include "KingdomEditor/Utils/GLVersionCombo.h"
@@ -9,6 +20,7 @@
 #include "KingdomEditor/DialogBox/ExcludeProjectDialogBox.h"
 
 #include <cstring>
+#include <array>
 
 namespace Editor
 {
@@ -55,10 +67,8 @@ namespace Editor
             ImGui::Text("Projects");
 
             ImGui::SetCursorPos(ImVec2(430, 30));
-            if (ImGui::Button("Open", ImVec2(106, 32)))
-            {
-                LOG_INFO("Open a project");
-            }
+            if (ImGui::Button("Import", ImVec2(106, 32)))
+                ImportProjectFromFile();
 
             ImGui::SetCursorPos(ImVec2(565, 30));
             if (ImGui::Button("New Project", ImVec2(106, 32)))
@@ -231,6 +241,30 @@ namespace Editor
         }
 
     private:
+        void ImportProjectFromFile()
+        {
+            std::array<char, 32768> selectedFile = {};
+            const char filter[] = "Kingdom Engine Project (*.kep)\0*.kep\0All Files (*.*)\0*.*\0";
+
+            OPENFILENAMEA dialog = {};
+            dialog.lStructSize = sizeof(dialog);
+            dialog.lpstrFilter = filter;
+            dialog.lpstrFile = selectedFile.data();
+            dialog.nMaxFile = static_cast<DWORD>(selectedFile.size());
+            dialog.lpstrDefExt = "kep";
+            dialog.lpstrTitle = "Import Kingdom Engine Project";
+            dialog.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+
+            if (GetOpenFileNameA(&dialog))
+                ProjectManager::Get().ImportProject(selectedFile.data());
+            else
+            {
+                const DWORD error = CommDlgExtendedError();
+                if (error != 0)
+                    LOG_ERROR("Could not open the project file picker. Common dialog error: " + std::to_string(error));
+            }
+        }
+
         bool renderingProjects;
         bool renderingNewProject;
 

@@ -21,6 +21,7 @@ namespace KE
 		void UpdateAllWindowsDockspace(KE::ImGuiManager& imguiManager);
 		ImWindow* GetWindow(const std::string& windowName);
 		void SetWindowVisible(const std::string& windowName, bool visible);
+		void FocusWindow(const std::string& windowName);
 		bool GetWindowVisible(const std::string& windowName);
 
 		std::vector<ImWindow*>& GetWindows() { return windows; }

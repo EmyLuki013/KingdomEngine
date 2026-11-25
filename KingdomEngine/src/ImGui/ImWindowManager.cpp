@@ -50,6 +50,9 @@ namespace KE
 
 	void ImWindowManager::UpdateAllWindowsDockspace(KE::ImGuiManager& imguiManager)
 	{
+		if (imguiManager.DockspaceIsInitialized())
+			return;
+
 		for (auto window : windows)
 		{
 			const char* name = window->properties.name.c_str();
@@ -88,9 +91,16 @@ namespace KE
 		auto it = windowsMap.find(windowName);
 		if (it != windowsMap.end())
 		{
-			it->second->properties.isVisible = visible;
-			it->second->properties.isInitialized = false;
+			if (it->second->properties.isVisible != visible)
+				it->second->properties.isVisible = visible;
 		}
+	}
+
+	void ImWindowManager::FocusWindow(const std::string& windowName)
+	{
+		auto it = windowsMap.find(windowName);
+		if (it != windowsMap.end())
+			it->second->Focus();
 	}
 
 	bool ImWindowManager::GetWindowVisible(const std::string& windowName)

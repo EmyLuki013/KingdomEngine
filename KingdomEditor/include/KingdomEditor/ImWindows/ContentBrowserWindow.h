@@ -143,11 +143,17 @@ namespace Editor
 				const bool selected = IsSelected(path);
 				ImGui::PushStyleColor(ImGuiCol_Button, selected ? ImVec4(0.20f, 0.40f, 0.65f, 0.8f) : ImVec4(0, 0, 0, 0));
 				const bool clicked = ImGui::ImageButton(filename.c_str(), textureId, { thumbnailSize, thumbnailSize }, { 0, 1 }, { 1, 0 });
+				const bool doubleClicked = ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
 				if (clicked)
-				{
-					const ImGuiIO& io = ImGui::GetIO();
 					SelectItem(path, entries);
-					if (!isDirectory && !io.KeyCtrl && !io.KeyShift)
+				if (doubleClicked)
+				{
+					if (isDirectory)
+					{
+						NavigateTo(path);
+						enteredDirectory = true;
+					}
+					else
 						OpenFile(path);
 				}
 
@@ -167,12 +173,6 @@ namespace Editor
 					ImGui::EndDragDropSource();
 				}
 
-				if (isDirectory && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-				{
-					NavigateTo(currentDirectory / path.filename());
-					enteredDirectory = true;
-				}
-
 				if (isDirectory)
 					AcceptInternalDrop(path);
 
@@ -180,8 +180,20 @@ namespace Editor
 				ImGui::PopStyleColor();
 
 				ImGui::TextWrapped("%s", filename.c_str());
-				if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+				const bool labelClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+				const bool labelDoubleClicked = ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+				if (labelClicked)
 					SelectItem(path, entries);
+				if (labelDoubleClicked)
+				{
+					if (isDirectory)
+					{
+						NavigateTo(path);
+						enteredDirectory = true;
+					}
+					else
+						OpenFile(path);
+				}
 				if (isDirectory)
 					AcceptInternalDrop(path);
 				RenderItemContextMenu(path, isDirectory, "LabelContext");
@@ -194,6 +206,12 @@ namespace Editor
 			}
 
 			ImGui::Columns(1);
+			if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+				!ImGui::IsAnyItemHovered() && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId))
+			{
+				selectedItems.clear();
+				selectionAnchor.clear();
+			}
 			if (!selectedItems.empty())
 				ImGui::Text("%zu selected", selectedItems.size());
 
@@ -717,7 +735,7 @@ namespace Editor
 			}
 
 			if (codeEditor->OpenFile(path.string()))
-				KE::ImWindowManager::Get().SetWindowVisible("Code Editor", true);
+				KE::ImWindowManager::Get().FocusWindow("Code Editor");
 		}
 
 		std::filesystem::path currentDirectory;
