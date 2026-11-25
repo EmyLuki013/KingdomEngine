@@ -4,6 +4,7 @@
 #include "KingdomEditor/DialogBox/ExcludeProjectDialogBox.h"
 #include "KingdomEditor/DialogBox/BuildErrorDialogBox.h"
 #include "KingdomEditor/Utils/Globals.h"
+#include "KingdomEditor/Utils/SceneEditorContext.h"
 #include "KingdomEditor/Project/ProjectBuild.h"
 
 namespace Editor
@@ -71,15 +72,82 @@ namespace Editor
 
     void EditorApplication::OnUpdate()
     {
-        if (ProjectManager::Get().GetLoadedProject())
+        auto* project = ProjectManager::Get().GetLoadedProject();
+        if (project)
         {
-            std::string newTitle = "Kingdom Engine - " + ProjectManager::Get().GetLoadedProject()->properties.name;
+            std::string newTitle = "Kingdom Engine - " + project->properties.name;
             GetWindow().SetTitle(newTitle);
-            KE::Renderer::GetClearColor() = ProjectManager::Get().GetLoadedProject()->properties.backgroundColor;
+            KE::Renderer::GetClearColor() = project->properties.backgroundColor;
+
+            const std::filesystem::path newProjectPath = project->properties.path;
+            if (sceneProjectPath != newProjectPath)
+            {
+                auto& sceneManager = GetSceneManager();
+                if (!sceneProjectPath.empty())
+                {
+                    const KE::Scene* currentScene = sceneManager.GetActiveScene();
+                    if (currentScene && currentScene->IsDirty() && !sceneManager.GetActiveScenePath().empty())
+                    {
+                        std::string saveError;
+                        if (!sceneManager.SaveActiveScene(saveError))
+                            LOG_ERROR("Could not save the previous scene: " + saveError);
+                    }
+                }
+
+                sceneProjectPath = newProjectPath;
+                selectedSceneObjectId = 0;
+                const std::filesystem::path sceneDirectory = sceneProjectPath / "scenes";
+                std::error_code error;
+                std::filesystem::create_directories(sceneDirectory, error);
+                if (error)
+                {
+                    LOG_ERROR("Could not create project scene directory: " + error.message());
+                    sceneManager.CreateScene("Main");
+                }
+                else
+                {
+                    const std::filesystem::path defaultScenePath = sceneDirectory / "Main.scene.json";
+                    const bool sceneExists = std::filesystem::exists(defaultScenePath, error);
+                    if (error)
+                    {
+                        LOG_ERROR("Could not check the default scene path: " + error.message());
+                        sceneManager.CreateScene("Main");
+                    }
+                    else if (sceneExists)
+                    {
+                        std::string loadError;
+                        if (!sceneManager.LoadScene(defaultScenePath, loadError))
+                        {
+                            LOG_ERROR("Could not load the project's default scene: " + loadError);
+                            sceneManager.CreateScene("Main");
+                        }
+                    }
+                    else
+                    {
+                        sceneManager.CreateScene("Main");
+                        std::string saveError;
+                        if (!sceneManager.SaveScene(defaultScenePath, saveError))
+                            LOG_ERROR("Could not create the project's default scene: " + saveError);
+                    }
+                }
+            }
         }
         else
         {
             KE::Renderer::GetClearColor() = KE::Color(0.20f, 0.20f, 0.20f);
+            if (!sceneProjectPath.empty())
+            {
+                const KE::Scene* currentScene = GetSceneManager().GetActiveScene();
+                if (currentScene && currentScene->IsDirty() && !GetSceneManager().GetActiveScenePath().empty())
+                {
+                    std::string saveError;
+                    if (!GetSceneManager().SaveActiveScene(saveError))
+                        LOG_ERROR("Could not save the unloaded project scene: " + saveError);
+                }
+                GetSceneManager().CreateScene("Untitled");
+                sceneProjectPath.clear();
+                selectedSceneObjectId = 0;
+            }
         }
 
         if (!ProjectManager::Get().GetLoadedProject())

@@ -6,6 +6,7 @@
 #include "kingdomEngine/Core/Window.h"
 #include "KingdomEngine/ImGui/ImGuiManager.h"
 #include "KingdomEngine/Renderer/OpenGL/Sprite.h"
+#include "KingdomEngine/Scene/SceneManager.h"
 
 #include "KingdomEngine/Events/ApplicationEvent.h"
 #include "KingdomEngine/Events/ImGuiEvent.h"
@@ -35,6 +36,8 @@ namespace KE
 
 		static Application* GetInstance();
 		Window& GetWindow() { return window; }
+		SceneManager& GetSceneManager() { return sceneManager; }
+		const SceneManager& GetSceneManager() const { return sceneManager; }
 
 		void Run();
 		void Quit();
@@ -48,6 +51,7 @@ namespace KE
 		ImGuiManager& imguiManager;
 		ImGuiEvent imguiEvent;
 		Sprite sprite;
+		SceneManager sceneManager;
 	};
 
 	Application* CreateApplication();

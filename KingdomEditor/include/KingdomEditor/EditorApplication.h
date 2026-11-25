@@ -6,6 +6,8 @@
 #include <KingdomEngine/Core/FontManager.h>
 #include <KingdomEngine/ImGui/ImMenuManager.h>
 
+#include <filesystem>
+
 namespace Editor
 {
 	class EditorApplication : public KE::Application
@@ -23,6 +25,7 @@ namespace Editor
 
 	private:
 		bool closeAfterSave;
+		std::filesystem::path sceneProjectPath;
 
 	};
 }

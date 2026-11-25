@@ -14,7 +14,8 @@
         "src/Core/IO/",
         "src/ImGui/",
         "src/Renderer/",
-        "src/Renderer/OpenGL/"
+        "src/Renderer/OpenGL/",
+        "src/Scene/"
     ],
     "includesDir": [
         "include/",
