@@ -3,11 +3,13 @@
 #include <string>
 #include <vector>
 #include <array>
+#include <functional>
 #include <memory>
 #include <unordered_set>
 #include <unordered_map>
 #include <map>
 #include <regex>
+#include <utility>
 #include "imgui.h"
 
 class TextEditor
@@ -74,7 +76,13 @@ public:
 			assert(aLine >= 0);
 			assert(aColumn >= 0);
 		}
-		static Coordinates Invalid() { static Coordinates invalid(-1, -1); return invalid; }
+		static Coordinates Invalid()
+		{
+			Coordinates invalid;
+			invalid.mLine = -1;
+			invalid.mColumn = -1;
+			return invalid;
+		}
 
 		bool operator ==(const Coordinates& o) const
 		{
@@ -124,6 +132,16 @@ public:
 		Coordinates mLocation;
 		std::string mDeclaration;
 	};
+
+	struct CompletionItem
+	{
+		std::string mText;
+		std::string mDetail;
+		std::string mDocumentation;
+		int mKind = 0;
+	};
+
+	typedef std::function<void(const std::string&, std::vector<CompletionItem>&)> CompletionProvider;
 
 	typedef std::string String;
 	typedef std::unordered_map<std::string, Identifier> Identifiers;
@@ -262,6 +280,34 @@ public:
 	void Undo(int aSteps = 1);
 	void Redo(int aSteps = 1);
 
+	// ----- Search -----
+	void OpenFind();
+	void CloseFind();
+	bool IsFindOpen() const { return mFindOpen; }
+	bool IsReplaceOpen() const { return mReplaceOpen; }
+
+	// ----- Go to line -----
+	void OpenGoToLine();
+	bool IsGoToLineOpen() const { return mGoToLineOpen; }
+
+	// ----- Bracket matching -----
+	void JumpToMatchingBracket();
+
+	// ----- Line operations -----
+	void DuplicateLine();
+	void MoveLineUp();
+	void MoveLineDown();
+	void DeleteLine();
+	void InsertLineAbove();
+	void InsertLineBelow();
+	void ToggleComment();
+
+	// ----- Autocomplete -----
+	void SetCompletionProvider(CompletionProvider aProvider) { mCompletionProvider = std::move(aProvider); }
+	void TriggerAutocomplete();
+	void CloseAutocomplete();
+	bool IsAutocompleteOpen() const { return mAutocompleteOpen; }
+
 	static const Palette& GetDarkPalette();
 	static const Palette& GetLightPalette();
 	static const Palette& GetRetroBluePalette();
@@ -324,7 +370,7 @@ private:
 	void Advance(Coordinates& aCoordinates) const;
 	void DeleteRange(const Coordinates& aStart, const Coordinates& aEnd);
 	int InsertTextAt(Coordinates& aWhere, const char* aValue);
-	void AddUndo(UndoRecord& aValue);
+	void AddUndo(UndoRecord& aValue, bool aMergeWithPrevious = false);
 	Coordinates ScreenPosToCoordinates(const ImVec2& aPosition) const;
 	Coordinates FindWordStart(const Coordinates& aFrom) const;
 	Coordinates FindWordEnd(const Coordinates& aFrom) const;
@@ -347,6 +393,54 @@ private:
 	void HandleKeyboardInputs();
 	void HandleMouseInputs();
 	void Render();
+
+	// ----- Autocomplete internals -----
+	void RenderAutocomplete();
+	void UpdateAutocomplete();
+	void RenderOccurrences();
+	std::string GetWordPrefixAtCursor() const;
+	void ApplyCompletion(const CompletionItem& aItem);
+	bool mAutocompleteOpen = false;
+	int mAutocompleteSelected = 0;
+	std::vector<CompletionItem> mAutocompleteItems;
+	CompletionProvider mCompletionProvider;
+	std::string mAutocompletePrefix;
+	Coordinates mAutocompleteCursor;
+
+	// ----- Search internals -----
+	void RenderFindReplace();
+	void RenderFindHighlights();
+	void FindNext(bool aBackwards);
+	void ReplaceOne();
+	void ReplaceAll();
+	void UpdateFindMatches();
+	void SelectFindMatch(int aIndex);
+	bool mFindOpen = false;
+	bool mReplaceOpen = false;
+	char mFindBuffer[256] = "";
+	char mReplaceBuffer[256] = "";
+	bool mFindCaseSensitive = false;
+	bool mFindWholeWord = false;
+	bool mFindRegex = false;
+	std::vector<Coordinates> mFindMatchStarts;
+	std::vector<Coordinates> mFindMatchEnds;
+	int mFindCurrentMatch = -1;
+	bool mFindFocusRequested = false;
+	std::string mFindError;
+
+	// ----- Go to line -----
+	bool mGoToLineOpen = false;
+	int mGoToLineValue = 1;
+	bool mGoToLineFocusRequested = false;
+
+	// ----- Bracket matching -----
+	void RenderBracketHighlight();
+	Coordinates GetMatchingBracket(const Coordinates& aFrom) const;
+	static int BracketDepth(char c);
+
+	// ----- Auto-close -----
+	bool HandleAutoClose(ImWchar aChar);
+	void GetSelectedLineRange(int& aStart, int& aEnd) const;
 
 	float mLineSpacing;
 	Lines mLines;
