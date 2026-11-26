@@ -59,12 +59,14 @@ namespace Editor
                 (thirdPartyDirectory / "SDL2/include").string(),
                 (thirdPartyDirectory / "stb/include").string(),
                 (thirdPartyDirectory / "rapidjson/include").string(),
-                (thirdPartyDirectory / "glad/include").string()
+                (thirdPartyDirectory / "glad/include").string(),
+                (thirdPartyDirectory / "Lua/include").string()
             };
             std::vector<std::string> libraryDirectories = {
                 KE::Core::EXE_DIR,
                 (thirdPartyDirectory / "SDL2/lib").string(),
-                (thirdPartyDirectory / "GLEW/lib").string()
+                (thirdPartyDirectory / "GLEW/lib").string(),
+                (thirdPartyDirectory / "Lua").string()
             };
             for (std::string& directory : includeDirectories)
                 directory = MakeProjectRelativePath(directory, projectDirectory);
@@ -72,7 +74,7 @@ namespace Editor
                 directory = MakeProjectRelativePath(directory, projectDirectory);
 
             const std::vector<std::string> libraries = {
-                "KingdomEngine", "DearImGui", "SDL2main", "SDL2", "opengl32", "gdi32",
+                "KingdomEngine", "lua55", "DearImGui", "SDL2main", "SDL2", "opengl32", "gdi32",
                 "winmm", "imm32", "version", "setupapi", "ole32", "oleaut32", "shell32",
                 "dinput8", "dxguid", "user32", "kernel32", "advapi32"
             };

@@ -7,6 +7,7 @@
 #include <KingdomEngine/ImGui/ImMenuManager.h>
 
 #include <filesystem>
+#include <string>
 
 namespace Editor
 {
@@ -26,6 +27,8 @@ namespace Editor
 	private:
 		bool closeAfterSave;
 		std::filesystem::path sceneProjectPath;
+		float saveFeedbackTimer;
+		bool saveFeedbackSucceeded;
 
 	};
 }

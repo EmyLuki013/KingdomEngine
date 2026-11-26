@@ -73,7 +73,8 @@ namespace Editor
 			
 			//Load cpp language
 			auto lang = TextEditor::LanguageDefinition::CPlusPlus(identifiers);
-			editor.SetLanguageDefinition(lang);
+			cppLanguageDefinition = lang;
+			editor.SetLanguageDefinition(cppLanguageDefinition);
 		}
 
 		bool OpenFile(const std::string& filePath)
@@ -90,6 +91,11 @@ namespace Editor
 				LOG_ERROR("Could not read file: " + filePath);
 				return false;
 			}
+
+			if (std::filesystem::path(filePath).extension() == ".lua")
+				editor.SetLanguageDefinition(TextEditor::LanguageDefinition::Lua());
+			else
+				editor.SetLanguageDefinition(cppLanguageDefinition);
 
 			editor.SetText(contents);
 			cppFile = std::filesystem::path(filePath).string();
@@ -178,6 +184,7 @@ namespace Editor
 		bool fileIsLoaded;
 		bool fileModified;
 		std::string cppFile;
+		TextEditor::LanguageDefinition cppLanguageDefinition;
 		
 	};
 }

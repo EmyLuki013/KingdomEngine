@@ -18,6 +18,8 @@ namespace KE
 
 		const std::string& GetName() const { return name; }
 		void SetName(const std::string& value);
+		const std::filesystem::path& GetAssetRoot() const { return assetRoot; }
+		void SetAssetRoot(const std::filesystem::path& value) { assetRoot = value; }
 		bool IsDirty() const { return dirty; }
 		void MarkDirty() { dirty = true; }
 		void ClearDirty() { dirty = false; }
@@ -26,7 +28,9 @@ namespace KE
 		bool DestroyObject(ObjectId objectId);
 		GameObject* FindObject(ObjectId objectId);
 		const GameObject* FindObject(ObjectId objectId) const;
+		GameObject* FindObjectByName(const std::string& objectName);
 		const std::vector<std::unique_ptr<GameObject>>& GetRootObjects() const { return roots; }
+		void Update(float deltaTime);
 		void Render(const glm::mat4& viewProjection);
 
 		bool SaveToFile(const std::filesystem::path& path, std::string& error) const;
@@ -38,6 +42,7 @@ namespace KE
 		static bool DestroyInTree(std::vector<std::unique_ptr<GameObject>>& objects, ObjectId objectId);
 
 		std::string name;
+		std::filesystem::path assetRoot;
 		ObjectId nextObjectId;
 		bool dirty;
 		std::vector<std::unique_ptr<GameObject>> roots;

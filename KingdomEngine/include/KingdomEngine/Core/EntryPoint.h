@@ -10,6 +10,8 @@ extern KE::Application* KE::CreateApplication();
 #include "KingdomEngine/Core/JSON.h"
 #include "KingdomEngine/Renderer/Renderer.h"
 
+#include <filesystem>
+
 int main(int argc, char** argv)
 {
 	KE::Log::Init("logs.txt");
@@ -21,6 +23,8 @@ int main(int argc, char** argv)
 	int windowWidth = 0;
 	int windowHeight = 0;
 	int glVersion = 0;
+	std::string startupScene = "scenes/Main.scene";
+	std::filesystem::path projectFilePath;
 	
 	//search application arguments
 	if (argc > 1)
@@ -34,6 +38,7 @@ int main(int argc, char** argv)
 				
 				if (propertiesFile.Exists(argv[i]))
 				{
+					projectFilePath = std::filesystem::absolute(argv[i]);
 					propertiesFile.Open(argv[i], KE::ModeFlags::READ);
 					propertiesJson.Parse(propertiesFile.Read(), true);
 					propertiesFile.Close();
@@ -43,6 +48,8 @@ int main(int argc, char** argv)
 					windowHeight = propertiesJson.GetValue<int>("project", "window_height", 600);
 					glVersion = propertiesJson.GetValue<int>("project", "gl_version", 1);
 					backgroundColor = propertiesJson.GetValue<std::string>("project", "background_color", "#000000");
+					startupScene = propertiesJson.GetValue<std::string>(
+						"project", "startup_scene", "scenes/Main.scene");
 				}
 				else
 				{
@@ -61,6 +68,22 @@ int main(int argc, char** argv)
 	//set window properties
 	app->GetWindow().SetTitle(windowTitle);
 	app->GetWindow().SetSize(windowWidth, windowHeight);
+
+	if (!projectFilePath.empty())
+	{
+		const std::filesystem::path projectRoot = projectFilePath.parent_path();
+		std::filesystem::path startupScenePath(startupScene);
+		if (!startupScenePath.is_absolute())
+			startupScenePath = projectRoot / startupScenePath;
+
+		app->GetSceneManager().SetAssetRoot(projectRoot);
+		std::string sceneError;
+		if (!app->GetSceneManager().LoadScene(startupScenePath, sceneError))
+		{
+			LOG_ERROR("Could not load the project's startup scene: " + sceneError);
+			app->Quit();
+		}
+	}
 	
 	//run application
 	app->Run();

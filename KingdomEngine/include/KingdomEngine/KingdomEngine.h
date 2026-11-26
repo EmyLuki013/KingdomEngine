@@ -13,6 +13,7 @@
 #include <KingdomEngine/Scene/Transform.h>
 #include <KingdomEngine/Scene/GameObject.h>
 #include <KingdomEngine/Scene/SpriteComponent.h>
+#include <KingdomEngine/Scene/ScriptComponent.h>
 #include <KingdomEngine/Scene/Scene.h>
 #include <KingdomEngine/Scene/SceneManager.h>
 

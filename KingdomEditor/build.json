@@ -21,16 +21,19 @@
 		"../ThirdParty/GLM/include",
         "../ThirdParty/glad/include",
 		"../ThirdParty/stb/include",
-		"../ThirdParty/rapidjson/include"
+		"../ThirdParty/rapidjson/include",
+		"../ThirdParty/Lua/include"
     ],
     "libsDir": [
         "../ThirdParty/SDL2/lib/",
         "../ThirdParty/GLEW/lib/",
         "../build/distribution/x64/",
-        "../ThirdParty/ImGui/build/distribution/x64/"
+        "../ThirdParty/ImGui/build/distribution/x64/",
+        "../ThirdParty/Lua/"
     ],
     "libs": [
         "KingdomEngine",
+        "lua55",
         "DearImGui",
 		"SDL2main",
         "SDL2",

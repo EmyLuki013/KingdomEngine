@@ -33,7 +33,7 @@ namespace Editor
         ~Project();
 
         void CreateKepFile();
-        void SaveKepFile();
+        bool SaveKepFile();
         void LoadKepFile();
 
         ProjectProperties properties;
@@ -41,7 +41,7 @@ namespace Editor
 		KE::File projectFile;
 
     private:
-        void WriteProjectFile();
+        bool WriteProjectFile();
     };
 }
 

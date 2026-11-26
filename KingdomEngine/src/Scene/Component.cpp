@@ -25,6 +25,10 @@ namespace KE
 			gameObject->MarkDirty();
 	}
 
+	void Component::Update(float)
+	{
+	}
+
 	void Component::Render(const glm::mat4&, const glm::mat4&)
 	{
 	}

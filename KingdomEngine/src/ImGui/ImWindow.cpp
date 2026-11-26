@@ -28,8 +28,8 @@ namespace KE
 		///on the first render
 		if (!properties.isInitialized)
 		{
-			ImGui::SetNextWindowPos(properties.position);
-			ImGui::SetNextWindowSize(properties.size);
+			ImGui::SetNextWindowPos(properties.position, ImGuiCond_FirstUseEver);
+			ImGui::SetNextWindowSize(properties.size, ImGuiCond_FirstUseEver);
 			properties.isInitialized = true;
 		}
 

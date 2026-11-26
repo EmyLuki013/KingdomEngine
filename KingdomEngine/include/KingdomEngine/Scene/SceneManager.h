@@ -14,6 +14,7 @@ namespace KE
 		SceneManager();
 
 		Scene& CreateScene(const std::string& name = "Untitled");
+		void SetAssetRoot(const std::filesystem::path& path);
 		bool LoadScene(const std::filesystem::path& path, std::string& error);
 		bool SaveScene(const std::filesystem::path& path, std::string& error);
 		bool SaveActiveScene(std::string& error);
@@ -25,5 +26,6 @@ namespace KE
 	private:
 		std::unique_ptr<Scene> activeScene;
 		std::filesystem::path activeScenePath;
+		std::filesystem::path assetRoot;
 	};
 }

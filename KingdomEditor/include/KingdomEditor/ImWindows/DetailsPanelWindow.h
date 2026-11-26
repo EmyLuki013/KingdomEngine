@@ -1,30 +1,20 @@
 #ifndef DETAILS_PANEL_WINDOW_H
 #define DETAILS_PANEL_WINDOW_H
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-
-#include <windows.h>
-#include <commdlg.h>
-
 #include <KingdomEngine/Core/Application.h>
 #include <KingdomEngine/ImGui/ImWindow.h>
 #include <KingdomEngine/Scene/Scene.h>
+#include <KingdomEngine/Scene/ScriptComponent.h>
 #include <KingdomEngine/Scene/SpriteComponent.h>
 
 #include "KingdomEditor/Project/ProjectManager.h"
 #include "KingdomEditor/Utils/SceneEditorContext.h"
 
 #include <algorithm>
-#include <array>
 #include <cctype>
 #include <cstring>
 #include <filesystem>
+#include <vector>
 
 namespace Editor
 {
@@ -55,6 +45,13 @@ namespace Editor
 			static KE::ObjectId editingObjectId = 0;
 			static const KE::Scene* editingScene = nullptr;
 			static char nameBuffer[256] = "";
+			static const KE::Scene* scriptEditingScene = nullptr;
+			static KE::ObjectId scriptEditingObjectId = 0;
+			static KE::ScriptComponent* scriptEditingComponent = nullptr;
+			static char scriptPathBuffer[512] = "";
+			static std::filesystem::path texturePickerRoot;
+			static std::filesystem::path texturePickerDirectory;
+			static bool refreshTexturePicker = false;
 			if (!object)
 			{
 				selectedSceneObjectId = 0;
@@ -94,6 +91,7 @@ namespace Editor
 
 			ImGui::Separator();
 			KE::SpriteComponent* sprite = object->GetComponent<KE::SpriteComponent>();
+			KE::ScriptComponent* script = object->GetComponent<KE::ScriptComponent>();
 			if (ImGui::Button("Add Component"))
 				ImGui::OpenPopup("AddComponentPopup");
 			if (ImGui::BeginPopup("AddComponentPopup"))
@@ -101,6 +99,8 @@ namespace Editor
 				ImGui::MenuItem("Transform (required)", nullptr, true, false);
 				if (ImGui::MenuItem("Sprite", nullptr, false, sprite == nullptr))
 					sprite = object->AddComponent<KE::SpriteComponent>();
+				if (ImGui::MenuItem("Lua Script", nullptr, false, script == nullptr))
+					script = object->AddComponent<KE::ScriptComponent>();
 				ImGui::EndPopup();
 			}
 
@@ -112,10 +112,47 @@ namespace Editor
 				ImGui::TextWrapped("Texture: %s",
 					sprite->GetTexturePath().empty() ? "(none)" : sprite->GetTexturePath().c_str());
 				if (ImGui::Button("Select Texture"))
-					SelectSpriteTexture(*sprite);
+				{
+					const Project* project = ProjectManager::Get().GetLoadedProject();
+					if (project)
+					{
+						texturePickerRoot = std::filesystem::path(project->properties.path).lexically_normal();
+						texturePickerDirectory = texturePickerRoot;
+						refreshTexturePicker = true;
+						ImGui::OpenPopup("Select Sprite Texture");
+					}
+					else
+						LOG_WARN("Open a project before selecting a sprite texture");
+				}
+				RenderTexturePicker(*sprite, texturePickerRoot, texturePickerDirectory, refreshTexturePicker);
 				ImGui::SameLine();
 				if (ImGui::Button("Remove Sprite"))
 					object->RemoveComponent<KE::SpriteComponent>();
+			}
+
+			if (scriptEditingScene != scene || scriptEditingObjectId != object->GetId() ||
+				scriptEditingComponent != script)
+			{
+				scriptEditingScene = scene;
+				scriptEditingObjectId = object->GetId();
+				scriptEditingComponent = script;
+				const std::string scriptPath = script ? script->GetScriptPath() : std::string();
+				std::strncpy(scriptPathBuffer, scriptPath.c_str(), sizeof(scriptPathBuffer) - 1);
+				scriptPathBuffer[sizeof(scriptPathBuffer) - 1] = '\0';
+			}
+
+			if (script)
+			{
+				bool scriptEnabled = script->IsEnabled();
+				if (ImGui::Checkbox("Script Enabled", &scriptEnabled))
+					script->SetEnabled(scriptEnabled);
+				ImGui::InputText("Lua Script Path", scriptPathBuffer, sizeof(scriptPathBuffer));
+				if (ImGui::Button("Apply Script"))
+					script->SetScriptPath(scriptPathBuffer);
+				ImGui::SameLine();
+				if (ImGui::Button("Remove Script"))
+					object->RemoveComponent<KE::ScriptComponent>();
+				ImGui::TextDisabled("Scripts run only in the game runtime");
 			}
 		}
 
@@ -131,41 +168,132 @@ namespace Editor
 				extension == ".bmp" || extension == ".tga";
 		}
 
-		static void SelectSpriteTexture(KE::SpriteComponent& sprite)
+		static bool IsWithinDirectory(const std::filesystem::path& root, const std::filesystem::path& path)
 		{
-			std::array<char, 32768> selectedFile = {};
-			const char filter[] = "Image Files (*.png;*.jpg;*.jpeg;*.bmp;*.tga)\0*.png;*.jpg;*.jpeg;*.bmp;*.tga\0";
+			const std::filesystem::path relative = path.lexically_normal().lexically_relative(root.lexically_normal());
+			if (relative.empty() || relative.is_absolute())
+				return false;
+			const auto first = relative.begin();
+			return first == relative.end() || *first != "..";
+		}
 
-			OPENFILENAMEA dialog = {};
-			dialog.lStructSize = sizeof(dialog);
-			dialog.lpstrFilter = filter;
-			dialog.lpstrFile = selectedFile.data();
-			dialog.nMaxFile = static_cast<DWORD>(selectedFile.size());
-			dialog.lpstrDefExt = "png";
-			dialog.lpstrTitle = "Select Sprite Texture";
-			dialog.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+		static void RenderTexturePicker(KE::SpriteComponent& sprite,
+			std::filesystem::path& root, std::filesystem::path& currentDirectory, bool& refreshRequested)
+		{
+			if (!ImGui::IsPopupOpen("Select Sprite Texture"))
+				return;
 
-			const Project* project = ProjectManager::Get().GetLoadedProject();
-			const std::string projectPath = project ? project->properties.path : std::string();
-			if (!projectPath.empty())
-				dialog.lpstrInitialDir = projectPath.c_str();
+			ImGui::SetNextWindowSize(ImVec2(560.0f, 420.0f), ImGuiCond_Appearing);
+			ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+			if (!ImGui::BeginPopupModal("Select Sprite Texture", nullptr, ImGuiWindowFlags_NoResize))
+				return;
 
-			if (GetOpenFileNameA(&dialog))
+			if (root.empty())
 			{
-				const std::filesystem::path texturePath(selectedFile.data());
-				if (!IsSupportedTexture(texturePath))
+				ImGui::TextDisabled("No project is open");
+			}
+			else
+			{
+				std::error_code directoryError;
+				if (!IsWithinDirectory(root, currentDirectory) ||
+					!std::filesystem::is_directory(currentDirectory, directoryError))
 				{
-					LOG_WARN("Unsupported sprite texture format: " + texturePath.extension().string());
-					return;
+					currentDirectory = root;
 				}
 
-				sprite.SetTexturePath(texturePath.lexically_normal().string());
-				return;
+				if (currentDirectory.lexically_normal() != root.lexically_normal())
+				{
+					if (ImGui::Button("Up"))
+						currentDirectory = currentDirectory.parent_path();
+					ImGui::SameLine();
+				}
+				if (ImGui::Button("Refresh"))
+					refreshRequested = true;
+				ImGui::TextWrapped("%s", currentDirectory.string().c_str());
+				ImGui::Separator();
+
+				static std::filesystem::path cachedDirectory;
+				static std::vector<std::filesystem::path> cachedDirectories;
+				static std::vector<std::filesystem::path> cachedImages;
+				static std::string listingError;
+				static bool cacheIsValid = false;
+				if (refreshRequested || !cacheIsValid || cachedDirectory != currentDirectory)
+				{
+					cachedDirectory = currentDirectory;
+					cachedDirectories.clear();
+					cachedImages.clear();
+					listingError.clear();
+
+					std::error_code iteratorError;
+					std::filesystem::directory_iterator iterator(currentDirectory, iteratorError);
+					const std::filesystem::directory_iterator end;
+					if (iteratorError)
+						listingError = "Could not enumerate texture picker directory: " + iteratorError.message();
+					while (!iteratorError && iterator != end)
+					{
+						std::error_code entryError;
+						if (iterator->is_directory(entryError))
+							cachedDirectories.push_back(iterator->path());
+						else if (!entryError && iterator->is_regular_file(entryError) && !entryError &&
+							IsSupportedTexture(iterator->path()))
+							cachedImages.push_back(iterator->path());
+
+						if (entryError && listingError.empty())
+							listingError = "Could not inspect texture picker entry: " + entryError.message();
+						iterator.increment(iteratorError);
+					}
+					if (iteratorError && listingError.empty())
+						listingError = "Could not enumerate texture picker directory: " + iteratorError.message();
+
+					const auto sortByName = [](const std::filesystem::path& left, const std::filesystem::path& right)
+					{
+						return left.filename().string() < right.filename().string();
+					};
+					std::sort(cachedDirectories.begin(), cachedDirectories.end(), sortByName);
+					std::sort(cachedImages.begin(), cachedImages.end(), sortByName);
+					cacheIsValid = true;
+					refreshRequested = false;
+					if (!listingError.empty())
+						LOG_ERROR(listingError);
+				}
+				if (!listingError.empty())
+					ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.4f, 1.0f), "%s", listingError.c_str());
+
+				std::filesystem::path nextDirectory;
+				std::filesystem::path selectedTexture;
+				ImGui::BeginChild("TexturePickerEntries", ImVec2(530.0f, 290.0f), true);
+				for (const auto& directory : cachedDirectories)
+				{
+					const std::string label = "[Folder] " + directory.filename().string();
+					if (ImGui::Selectable(label.c_str()))
+						nextDirectory = directory;
+				}
+				for (const auto& image : cachedImages)
+				{
+					if (ImGui::Selectable(image.filename().string().c_str()))
+						selectedTexture = image;
+				}
+				if (cachedDirectories.empty() && cachedImages.empty() && listingError.empty())
+					ImGui::TextDisabled("No image files in this directory");
+				ImGui::EndChild();
+
+				if (!nextDirectory.empty())
+					currentDirectory = nextDirectory;
+				if (!selectedTexture.empty())
+				{
+					const std::filesystem::path relative =
+						selectedTexture.lexically_normal().lexically_relative(root.lexically_normal());
+					std::string texturePath = IsWithinDirectory(root, selectedTexture)
+						? relative.generic_string()
+						: selectedTexture.lexically_normal().string();
+					sprite.SetTexturePath(texturePath);
+					ImGui::CloseCurrentPopup();
+				}
 			}
 
-			const DWORD error = CommDlgExtendedError();
-			if (error != 0)
-				LOG_ERROR("Could not open the texture picker. Common dialog error: " + std::to_string(error));
+			if (ImGui::Button("Cancel"))
+				ImGui::CloseCurrentPopup();
+			ImGui::EndPopup();
 		}
 	};
 }

@@ -1,6 +1,8 @@
 #include "KingdomEngine/Core/Application.h"
 #include "KingdomEngine/ImGui/ImWindowManager.h"
 
+#include <algorithm>
+#include <chrono>
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace KE
@@ -144,8 +146,14 @@ namespace KE
 	{
 		OnReady();
 
+		auto previousFrameTime = std::chrono::steady_clock::now();
 		while (isRunning)
 		{
+			const auto currentFrameTime = std::chrono::steady_clock::now();
+			const float deltaTime = std::min(
+				std::chrono::duration<float>(currentFrameTime - previousFrameTime).count(), 0.1f);
+			previousFrameTime = currentFrameTime;
+
             imguiManager.CreateNewFrame();
 
 			Renderer::GetFramebuffer().Bind();
@@ -153,6 +161,9 @@ namespace KE
 			OnUpdate();
 			if (Scene* scene = sceneManager.GetActiveScene())
 			{
+				if (isGameApplication)
+					scene->Update(deltaTime);
+
 				constexpr float viewHeight = 10.0f;
 				const float aspect = sceneViewportWidth / sceneViewportHeight;
 				const float halfHeight = viewHeight * 0.5f;

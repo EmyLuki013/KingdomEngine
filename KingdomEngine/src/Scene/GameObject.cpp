@@ -37,6 +37,21 @@ namespace KE
 		owner->MarkDirty();
 	}
 
+	void GameObject::Update(float deltaTime)
+	{
+		if (!active)
+			return;
+
+		for (const auto& component : components)
+		{
+			if (component->IsEnabled())
+				component->Update(deltaTime);
+		}
+
+		for (const auto& child : children)
+			child->Update(deltaTime);
+	}
+
 	void GameObject::Render(const glm::mat4& viewProjection, const glm::mat4& parentTransform)
 	{
 		if (!active)

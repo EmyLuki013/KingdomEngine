@@ -264,7 +264,7 @@ namespace Editor
 			return extension == ".c" || extension == ".cc" || extension == ".cpp" ||
 				extension == ".cxx" || extension == ".h" || extension == ".hh" ||
 				extension == ".hpp" || extension == ".hxx" || extension == ".inl" ||
-				extension == ".glsl" || extension == ".vert" || extension == ".frag" ||
+				extension == ".lua" || extension == ".glsl" || extension == ".vert" || extension == ".frag" ||
 				extension == ".txt" || extension == ".json" || extension == ".xml" ||
 				extension == ".yaml" || extension == ".yml";
 		}

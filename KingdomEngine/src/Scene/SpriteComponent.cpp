@@ -1,6 +1,10 @@
 #include "KingdomEngine/Scene/SpriteComponent.h"
 
+#include "KingdomEngine/Scene/GameObject.h"
+#include "KingdomEngine/Scene/Scene.h"
 #include "KingdomEngine/Renderer/OpenGL/Sprite.h"
+
+#include <filesystem>
 
 namespace KE
 {
@@ -32,7 +36,16 @@ namespace KE
 		if (!textureLoadAttempted)
 		{
 			textureLoadAttempted = true;
-			if (!sprite->LoadTexture(texturePath))
+			std::filesystem::path resolvedPath(texturePath);
+			if (resolvedPath.is_relative())
+			{
+				const GameObject* gameObject = GetGameObject();
+				const Scene* scene = gameObject ? gameObject->GetScene() : nullptr;
+				if (scene && !scene->GetAssetRoot().empty())
+					resolvedPath = scene->GetAssetRoot() / resolvedPath;
+			}
+
+			if (!sprite->LoadTexture(resolvedPath.string()))
 				return;
 		}
 		if (sprite->GetTextureID() == 0)

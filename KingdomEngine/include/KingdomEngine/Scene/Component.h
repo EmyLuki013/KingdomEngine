@@ -15,6 +15,7 @@ namespace KE
 		GameObject* GetGameObject() const { return gameObject; }
 		bool IsEnabled() const { return enabled; }
 		void SetEnabled(bool value);
+		virtual void Update(float deltaTime);
 		virtual void Render(const glm::mat4& viewProjection, const glm::mat4& worldTransform);
 
 	protected:

@@ -18,6 +18,8 @@ namespace Editor
     EditorApplication::EditorApplication() : KE::Application(false)
     {
         closeAfterSave = false;
+        saveFeedbackTimer = 0.0f;
+        saveFeedbackSucceeded = false;
 
         ActivateImGui();
 
@@ -97,6 +99,7 @@ namespace Editor
 
                 sceneProjectPath = newProjectPath;
                 selectedSceneObjectId = 0;
+                sceneManager.SetAssetRoot(sceneProjectPath);
                 const std::filesystem::path sceneDirectory = sceneProjectPath / "scenes";
                 std::error_code error;
                 std::filesystem::create_directories(sceneDirectory, error);
@@ -194,6 +197,7 @@ namespace Editor
                         LOG_ERROR("Could not save the unloaded project scene: " + saveError);
                 }
                 GetSceneManager().CreateScene("Untitled");
+                GetSceneManager().SetAssetRoot({});
                 sceneProjectPath.clear();
                 selectedSceneObjectId = 0;
             }
@@ -246,6 +250,21 @@ namespace Editor
     {
         UPDATE_ALL_IM_WINDOW();
 
+        ImGuiIO& io = ImGui::GetIO();
+        Project* project = ProjectManager::Get().GetLoadedProject();
+        if (project && io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
+        {
+            std::string sceneError;
+            const bool sceneSaved = SceneFileUtils::SaveActiveScene(
+                GetSceneManager(), project->properties.path, project->properties.startupScene, sceneError);
+            if (!sceneSaved)
+                LOG_ERROR("Could not save active scene with the project: " + sceneError);
+
+            const bool projectSaved = project->SaveKepFile();
+            saveFeedbackSucceeded = sceneSaved && projectSaved;
+            saveFeedbackTimer = 1.6f;
+        }
+
         //process save project dialog box
         KE::DialogResult saveProjectResult = SaveProjectDialog::Show();
         if (saveProjectResult == KE::DialogResult::Save)
@@ -261,6 +280,30 @@ namespace Editor
 
         ExcludeProjectDialog::Show();
         BuildErrorDialog::Show();
+
+        if (saveFeedbackTimer > 0.0f)
+        {
+            const ImGuiViewport* viewport = ImGui::GetMainViewport();
+            ImGui::SetNextWindowPos(
+                ImVec2(viewport->WorkPos.x + viewport->WorkSize.x - 12.0f,
+                    viewport->WorkPos.y + viewport->WorkSize.y - 12.0f),
+                ImGuiCond_Always, ImVec2(1.0f, 1.0f));
+            ImGui::SetNextWindowBgAlpha(0.9f);
+            ImGui::Begin("##ProjectSaveFeedback", nullptr,
+                ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration |
+                ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings |
+                ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav |
+                ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoInputs);
+            if (saveFeedbackSucceeded)
+                ImGui::TextColored(ImVec4(0.55f, 0.9f, 0.55f, 1.0f), "Project and scene saved");
+            else
+                ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.4f, 1.0f), "Save failed - see console");
+            ImGui::End();
+
+            saveFeedbackTimer -= io.DeltaTime;
+            if (saveFeedbackTimer < 0.0f)
+                saveFeedbackTimer = 0.0f;
+        }
     }
 
     void EditorApplication::OnMenuBarRender()

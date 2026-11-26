@@ -27,7 +27,7 @@ namespace Editor
         WriteProjectFile();
     }
 
-    void Project::SaveKepFile()
+    bool Project::SaveKepFile()
     {
         projectJson.SetValue("project", "name", properties.name);
         projectJson.SetValue("project", "gl_version", properties.glVersion);
@@ -37,7 +37,7 @@ namespace Editor
 		projectJson.SetValue("project", "window_width", properties.windowProperties.width);
 		projectJson.SetValue("project", "window_height", properties.windowProperties.height);
 
-        WriteProjectFile();
+        return WriteProjectFile();
     }
 
     void Project::LoadKepFile()
@@ -96,10 +96,18 @@ namespace Editor
         }
     }
 
-    void Project::WriteProjectFile()
+    bool Project::WriteProjectFile()
     {
         projectFile.Open(properties.path + "\\" + properties.kepFile, KE::ModeFlags::WRITE);
+        if (!projectFile.IsOpen())
+            return false;
+
         projectFile.Write(projectJson.Stringify());
+        projectFile.GetFile().flush();
+        const bool writeSucceeded = projectFile.GetFile().good();
         projectFile.Close();
+        if (!writeSucceeded)
+            LOG_ERROR("Could not save project file: " + properties.path + "\\" + properties.kepFile);
+        return writeSucceeded;
     }
 }

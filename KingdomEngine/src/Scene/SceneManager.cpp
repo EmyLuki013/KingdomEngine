@@ -10,8 +10,16 @@ namespace KE
 	Scene& SceneManager::CreateScene(const std::string& name)
 	{
 		activeScene.reset(new Scene(name));
+		activeScene->SetAssetRoot(assetRoot);
 		activeScenePath.clear();
 		return *activeScene;
+	}
+
+	void SceneManager::SetAssetRoot(const std::filesystem::path& path)
+	{
+		assetRoot = path;
+		if (activeScene)
+			activeScene->SetAssetRoot(assetRoot);
 	}
 
 	bool SceneManager::LoadScene(const std::filesystem::path& path, std::string& error)
@@ -21,6 +29,7 @@ namespace KE
 			return false;
 
 		activeScene = std::move(loadedScene);
+		activeScene->SetAssetRoot(assetRoot);
 		activeScenePath = path;
 		return true;
 	}

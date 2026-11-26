@@ -1,7 +1,10 @@
 #include "KingdomEngine/ImGui/ImGuiManager.h"
+#include "KingdomEngine/Core/Core.h"
 #include "KingdomEngine/Core/Log.h"
 #include "KingdomEngine/Events/Event.h"
 #include "KingdomEngine/ImGui/ImWindowManager.h"
+
+#include <filesystem>
 
 namespace KE
 {
@@ -42,12 +45,18 @@ namespace KE
 	{
 		if (!isEnabled)
 		{
+			std::error_code filesystemError;
+			std::filesystem::create_directories(Core::KE_DIRECTORY, filesystemError);
+			if (filesystemError)
+				LOG_ERROR("Could not create editor settings directory: " + filesystemError.message());
+			iniFilePath = (std::filesystem::path(Core::KE_DIRECTORY) / "imgui.ini").string();
+
 			//setup imgui context
 			ImGui::CreateContext();
 			ImGui::StyleColorsDark();
 
 			ImGuiIO& io = ImGui::GetIO(); (void)io;
-			io.IniFilename = nullptr;
+			io.IniFilename = iniFilePath.c_str();
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 			io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
@@ -98,6 +107,9 @@ namespace KE
 	{
 		if (isEnabled)
 		{
+			if (ImGui::GetCurrentContext() && ImGui::GetIO().IniFilename)
+				ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
+
 			if (DetectGLContextVersion() == 3)
 			{
 				ImGui_ImplOpenGL3_Shutdown();
@@ -192,19 +204,21 @@ namespace KE
 			dockspaceID = ImGui::GetID("MainDockSpace");
 			if (!dockspaceInitialized)
 			{
-				ImGui::DockBuilderRemoveNode(dockspaceID);
-				ImGui::DockBuilderAddNode(dockspaceID, ImGuiDockNodeFlags_DockSpace);
-				ImGui::DockBuilderSetNodeSize(dockspaceID, viewport->Size);
+				if (ImGui::DockBuilderGetNode(dockspaceID) == nullptr)
+				{
+					ImGui::DockBuilderAddNode(dockspaceID, ImGuiDockNodeFlags_DockSpace);
+					ImGui::DockBuilderSetNodeSize(dockspaceID, viewport->Size);
 
-				dockSides.dock_main = dockspaceID;
-				dockSides.dock_left = ImGui::DockBuilderSplitNode(dockSides.dock_main, ImGuiDir_Left, 0.2f, nullptr, &dockSides.dock_main);
-				dockSides.dock_right = ImGui::DockBuilderSplitNode(dockSides.dock_main, ImGuiDir_Right, 0.15f, nullptr, &dockSides.dock_main);
-				dockSides.dock_down = ImGui::DockBuilderSplitNode(dockSides.dock_main, ImGuiDir_Down, 0.15f, nullptr, &dockSides.dock_main);
-				dockSides.dock_left_top = ImGui::DockBuilderSplitNode(dockSides.dock_left, ImGuiDir_Up, 0.5f, nullptr, &dockSides.dock_left);
-				dockSides.dock_left_bottom = dockSides.dock_left;
+					dockSides.dock_main = dockspaceID;
+					dockSides.dock_left = ImGui::DockBuilderSplitNode(dockSides.dock_main, ImGuiDir_Left, 0.2f, nullptr, &dockSides.dock_main);
+					dockSides.dock_right = ImGui::DockBuilderSplitNode(dockSides.dock_main, ImGuiDir_Right, 0.15f, nullptr, &dockSides.dock_main);
+					dockSides.dock_down = ImGui::DockBuilderSplitNode(dockSides.dock_main, ImGuiDir_Down, 0.15f, nullptr, &dockSides.dock_main);
+					dockSides.dock_left_top = ImGui::DockBuilderSplitNode(dockSides.dock_left, ImGuiDir_Up, 0.5f, nullptr, &dockSides.dock_left);
+					dockSides.dock_left_bottom = dockSides.dock_left;
 
-				ImWindowManager::Get().UpdateAllWindowsDockspace(*this);
-				ImGui::DockBuilderFinish(dockspaceID);
+					ImWindowManager::Get().UpdateAllWindowsDockspace(*this);
+					ImGui::DockBuilderFinish(dockspaceID);
+				}
 				dockspaceInitialized = true;
 			}
 		}

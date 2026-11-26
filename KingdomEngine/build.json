@@ -25,15 +25,18 @@
 		"../ThirdParty/GLM/include",
 		"../ThirdParty/glad/include",
 		"../ThirdParty/stb/include",
-		"../ThirdParty/rapidjson/include"
+		"../ThirdParty/rapidjson/include",
+		"../ThirdParty/Lua/include"
     ],
     "libsDir": [
         "../ThirdParty/SDL2/lib/",
         "../ThirdParty/GLEW/lib/",
-        "../ThirdParty/ImGui/build/distribution/x64/"
+        "../ThirdParty/ImGui/build/distribution/x64/",
+        "../ThirdParty/Lua/"
     ],
     "libs": [
         "SDL2",
+        "lua55",
         "DearImGui",
         "opengl32",
         "Winmm",

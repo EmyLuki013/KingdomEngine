@@ -28,12 +28,15 @@ namespace KE
 		void SetName(const std::string& value);
 		bool IsActive() const { return active; }
 		void SetActive(bool value);
+		Scene* GetScene() const { return owner; }
 
 		Transform& GetTransform() { return *GetComponent<Transform>(); }
 		const Transform& GetTransform() const { return *GetComponent<Transform>(); }
 		GameObject* GetParent() const { return parent; }
 		const std::vector<std::unique_ptr<GameObject>>& GetChildren() const { return children; }
 		const std::vector<std::unique_ptr<Component>>& GetComponents() const { return components; }
+
+		void Update(float deltaTime);
 
 		template<typename T, typename... Args>
 		T* AddComponent(Args&&... args)

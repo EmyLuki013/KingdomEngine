@@ -1,4 +1,5 @@
 #include "KingdomEngine/Scene/Scene.h"
+#include "KingdomEngine/Scene/ScriptComponent.h"
 #include "KingdomEngine/Scene/SpriteComponent.h"
 
 #include <algorithm>
@@ -18,7 +19,8 @@ namespace KE
 	namespace
 	{
 		constexpr const char* SceneFormat = "KingdomEngineScene";
-		constexpr unsigned SceneFormatVersion = 2;
+		constexpr unsigned SceneFormatVersion = 3;
+		constexpr unsigned PreviousSceneFormatVersion = 2;
 		constexpr unsigned LegacySceneFormatVersion = 1;
 		constexpr unsigned MaxHierarchyDepth = 256;
 
@@ -70,6 +72,18 @@ namespace KE
 					writer.Key("texturePath");
 					writer.String(sprite->GetTexturePath().c_str(),
 						static_cast<rapidjson::SizeType>(sprite->GetTexturePath().size()));
+					writer.EndObject();
+				}
+				else if (const ScriptComponent* script = dynamic_cast<const ScriptComponent*>(component.get()))
+				{
+					writer.StartObject();
+					writer.Key("type");
+					writer.String("Script");
+					writer.Key("enabled");
+					writer.Bool(script->IsEnabled());
+					writer.Key("scriptPath");
+					writer.String(script->GetScriptPath().c_str(),
+						static_cast<rapidjson::SizeType>(script->GetScriptPath().size()));
 					writer.EndObject();
 				}
 			}
@@ -172,6 +186,28 @@ namespace KE
 		return FindInTree(roots, objectId);
 	}
 
+	GameObject* Scene::FindObjectByName(const std::string& objectName)
+	{
+		auto findByName = [&](auto&& self, std::vector<std::unique_ptr<GameObject>>& objects) -> GameObject*
+		{
+			for (auto& object : objects)
+			{
+				if (object->GetName() == objectName)
+					return object.get();
+				if (GameObject* child = self(self, object->children))
+					return child;
+			}
+			return nullptr;
+		};
+		return findByName(findByName, roots);
+	}
+
+	void Scene::Update(float deltaTime)
+	{
+		for (const auto& object : roots)
+			object->Update(deltaTime);
+	}
+
 	void Scene::Render(const glm::mat4& viewProjection)
 	{
 		const GLboolean depthTestEnabled = glIsEnabled(GL_DEPTH_TEST);
@@ -272,7 +308,9 @@ namespace KE
 		}
 
 		const unsigned formatVersion = document["version"].GetUint();
-		if (formatVersion != LegacySceneFormatVersion && formatVersion != SceneFormatVersion)
+		if (formatVersion != LegacySceneFormatVersion &&
+			formatVersion != PreviousSceneFormatVersion &&
+			formatVersion != SceneFormatVersion)
 		{
 			error = "Scene has missing, invalid, or unsupported metadata";
 			return nullptr;
@@ -294,7 +332,7 @@ namespace KE
 				!source.HasMember("active") || !source["active"].IsBool() ||
 				(formatVersion == LegacySceneFormatVersion &&
 					(!source.HasMember("transform") || !source["transform"].IsObject())) ||
-				(formatVersion == SceneFormatVersion &&
+				(formatVersion >= PreviousSceneFormatVersion &&
 					(!source.HasMember("components") || !source["components"].IsArray())) ||
 				!source.HasMember("children") || !source["children"].IsArray())
 			{
@@ -325,6 +363,7 @@ namespace KE
 			{
 				bool hasTransform = false;
 				bool hasSprite = false;
+				bool hasScript = false;
 				for (const auto& component : source["components"].GetArray())
 				{
 					if (!component.IsObject() ||
@@ -367,6 +406,22 @@ namespace KE
 							component["texturePath"].GetString(),
 							component["texturePath"].GetStringLength()));
 						sprite->SetEnabled(component["enabled"].GetBool());
+					}
+					else if (type == "Script" && formatVersion == SceneFormatVersion)
+					{
+						if (hasScript || !component.HasMember("scriptPath") ||
+							!component["scriptPath"].IsString())
+						{
+							error = "Scene Script component has missing or invalid fields";
+							return false;
+						}
+						hasScript = true;
+
+						ScriptComponent* script = object->AddComponent<ScriptComponent>();
+						script->SetScriptPath(std::string(
+							component["scriptPath"].GetString(),
+							component["scriptPath"].GetStringLength()));
+						script->SetEnabled(component["enabled"].GetBool());
 					}
 					else
 					{

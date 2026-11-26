@@ -11,6 +11,8 @@
 #include <ImGui/imgui_impl_opengl2.h>
 #include <ImGui/imgui_internal.h>
 
+#include <string>
+
 namespace KE
 {
 	class ImGuiEvent;
@@ -67,6 +69,7 @@ namespace KE
 		DockSides dockSides;
 		Font* loadedFont;
 		ImGuiTheme theme;
+		std::string iniFilePath;
 
 	};
 }
