@@ -4,9 +4,6 @@
 #include "KingdomEditor/Project/Project.h"
 
 #include <unordered_map>
-#include <thread>
-#include <atomic>
-
 namespace Editor
 {
 	class ProjectManager
@@ -21,6 +18,7 @@ namespace Editor
 		void LoadProject(const std::string& projectName);
 		void UnloadProject();
 		void RunProject();
+		void StopProject();
 		void RemoveProject(const std::string& projectName);
 		void UpdateLoadedProjectJsonData();
 
@@ -35,8 +33,6 @@ namespace Editor
 
 		void WriteProjectFile();
 		void PushProject(Project& project);
-
-		void RunProjectThread();
 
 		std::vector<Project*> projects;
 		std::unordered_map<std::string, Project*> projectsMap;

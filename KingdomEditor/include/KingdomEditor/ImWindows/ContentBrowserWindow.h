@@ -10,6 +10,7 @@
 #include "KingdomEditor/ImWindows/CodeEditorWindow.h"
 #include "KingdomEditor/Project/ProjectManager.h"
 #include "KingdomEditor/Utils/Globals.h"
+#include "KingdomEditor/Utils/SceneFileUtils.h"
 
 #include <algorithm>
 #include <cctype>
@@ -35,6 +36,7 @@ namespace Editor
 			newItemName[0] = '\0';
 			renameItemName[0] = '\0';
 			creatingDirectory = false;
+			creatingLuaScript = false;
 		}
 
 		void OnReady() override
@@ -404,6 +406,16 @@ namespace Editor
 			if (!ImGui::BeginPopupContextItem(popupId, ImGuiPopupFlags_MouseButtonRight))
 				return;
 
+			const Project* project = ProjectManager::Get().GetLoadedProject();
+			if (!isDirectory && SceneFileUtils::IsSceneFile(path))
+			{
+				const bool isMainScene = project && IsMainScenePath(*project, path);
+				if (ImGui::MenuItem("Set as Main Scene", nullptr, isMainScene,
+					project != nullptr && !isMainScene))
+					SetMainScene(path);
+				ImGui::Separator();
+			}
+
 			if (ImGui::MenuItem("Delete", "Del", false, !selectedItems.empty()))
 				DeleteSelectedItems();
 			if (ImGui::MenuItem("Rename", nullptr, false, true))
@@ -418,6 +430,97 @@ namespace Editor
 			ImGui::EndPopup();
 		}
 
+		static bool IsPathWithin(const std::filesystem::path& directory, const std::filesystem::path& path)
+		{
+			const std::filesystem::path relative =
+				path.lexically_normal().lexically_relative(directory.lexically_normal());
+			return !relative.empty() && !relative.is_absolute() && *relative.begin() != "..";
+		}
+
+		static std::filesystem::path GetMainScenePath(const Project& project)
+		{
+			std::filesystem::path path = project.properties.startupScene;
+			if (path.is_relative())
+				path = std::filesystem::path(project.properties.path) / path;
+			return path.lexically_normal();
+		}
+
+		static bool IsMainScenePath(const Project& project, const std::filesystem::path& path)
+		{
+			return GetMainScenePath(project) == path.lexically_normal();
+		}
+
+		static bool IsMainSceneWithin(const std::filesystem::path& path)
+		{
+			const Project* project = ProjectManager::Get().GetLoadedProject();
+			if (!project)
+				return false;
+
+			const std::filesystem::path mainScenePath = GetMainScenePath(*project);
+			const std::filesystem::path normalizedPath = path.lexically_normal();
+			return mainScenePath == normalizedPath || IsPathWithin(normalizedPath, mainScenePath);
+		}
+
+		static bool IsActiveSceneWithin(const std::filesystem::path& path)
+		{
+			KE::Application* application = KE::Application::GetInstance();
+			if (!application)
+				return false;
+
+			const std::filesystem::path activeScenePath =
+				application->GetSceneManager().GetActiveScenePath().lexically_normal();
+			const std::filesystem::path normalizedPath = path.lexically_normal();
+			return !activeScenePath.empty() &&
+				(activeScenePath == normalizedPath || IsPathWithin(normalizedPath, activeScenePath));
+		}
+
+		static void SetMainScene(const std::filesystem::path& path)
+		{
+			Project* project = ProjectManager::Get().GetLoadedProject();
+			if (!project)
+				return;
+
+			const std::string previousScene = project->properties.startupScene;
+			project->properties.startupScene =
+				SceneFileUtils::ProjectRelativePath(path, project->properties.path);
+			if (!project->SaveKepFile())
+			{
+				project->properties.startupScene = previousScene;
+				project->projectJson.SetValue("project", "startup_scene", previousScene);
+				LOG_ERROR("Could not save the project's main scene");
+				return;
+			}
+
+			LOG_INFO("Set main scene to: " + project->properties.startupScene);
+		}
+
+		static void UpdateMainScenePath(const std::filesystem::path& oldPath,
+			const std::filesystem::path& newPath)
+		{
+			if (KE::Application* application = KE::Application::GetInstance())
+				application->GetSceneManager().RelocateActiveScenePath(oldPath, newPath);
+
+			Project* project = ProjectManager::Get().GetLoadedProject();
+			if (!project)
+				return;
+
+			const std::filesystem::path mainScenePath = GetMainScenePath(*project);
+			const std::filesystem::path normalizedOldPath = oldPath.lexically_normal();
+			if (mainScenePath != normalizedOldPath && !IsPathWithin(normalizedOldPath, mainScenePath))
+				return;
+
+			const std::filesystem::path relative = mainScenePath == normalizedOldPath
+				? std::filesystem::path()
+				: mainScenePath.lexically_relative(normalizedOldPath);
+			const std::filesystem::path updatedPath = relative.empty()
+				? newPath
+				: newPath / relative;
+			project->properties.startupScene =
+				SceneFileUtils::ProjectRelativePath(updatedPath, project->properties.path);
+			if (!project->SaveKepFile())
+				LOG_ERROR("Could not save the updated main scene path");
+		}
+
 		void RenderCreationMenu()
 		{
 			if (ImGui::BeginPopupContextWindow("ContentBrowserContextMenu",
@@ -427,6 +530,8 @@ namespace Editor
 					StartCreateItem(true);
 				if (ImGui::MenuItem("Create File"))
 					StartCreateItem(false);
+				if (ImGui::MenuItem("Create Lua Script"))
+					StartCreateLuaScript();
 				if (ImGui::MenuItem("Paste", "Ctrl+V", false, !clipboardItems.empty()))
 					PasteItems(currentDirectory);
 				ImGui::EndPopup();
@@ -436,8 +541,18 @@ namespace Editor
 		void StartCreateItem(bool isDirectory)
 		{
 			creatingDirectory = isDirectory;
+			creatingLuaScript = false;
 			const char* defaultName = creatingDirectory ? "New Folder" : "NewFile.cpp";
 			std::strncpy(newItemName, defaultName, sizeof(newItemName) - 1);
+			newItemName[sizeof(newItemName) - 1] = '\0';
+			createPopupRequested = true;
+		}
+
+		void StartCreateLuaScript()
+		{
+			creatingDirectory = false;
+			creatingLuaScript = true;
+			std::strncpy(newItemName, "NewScript.lua", sizeof(newItemName) - 1);
 			newItemName[sizeof(newItemName) - 1] = '\0';
 			createPopupRequested = true;
 		}
@@ -453,7 +568,7 @@ namespace Editor
 			if (!ImGui::BeginPopupModal("Create Content Browser Item", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
 				return;
 
-			ImGui::Text("%s name:", creatingDirectory ? "Folder" : "File");
+			ImGui::Text("%s name:", creatingDirectory ? "Folder" : creatingLuaScript ? "Lua script" : "File");
 			ImGui::InputText("##NewItemName", newItemName, sizeof(newItemName));
 			if (ImGui::Button("Create") && CreateNewItem())
 				ImGui::CloseCurrentPopup();
@@ -476,11 +591,22 @@ namespace Editor
 
 		bool CreateNewItem()
 		{
-			const std::string name(newItemName);
+			std::string name(newItemName);
 			if (!IsValidName(name))
 			{
 				LOG_ERROR("Enter a valid name without a directory path");
 				return false;
+			}
+			if (creatingLuaScript)
+			{
+				const std::string extension = GetExtension(name);
+				if (extension.empty())
+					name += ".lua";
+				else if (extension != ".lua")
+				{
+					LOG_ERROR("A Lua script must use the .lua extension");
+					return false;
+				}
 			}
 
 			const std::filesystem::path newPath = currentDirectory / name;
@@ -512,6 +638,19 @@ namespace Editor
 					LOG_ERROR("Could not create file: " + newPath.string());
 					return false;
 				}
+				if (creatingLuaScript)
+				{
+					file << "function on_start(self)\n"
+						<< "end\n\n"
+						<< "function on_update(self, dt)\n"
+						<< "end\n";
+					file.flush();
+				}
+				if (!file.good())
+				{
+					LOG_ERROR("Could not write new file: " + newPath.string());
+					return false;
+				}
 				file.close();
 				if (!file)
 				{
@@ -522,6 +661,8 @@ namespace Editor
 
 			InvalidateThumbnailCache(newPath);
 			LOG_INFO(std::string(creatingDirectory ? "Created folder: " : "Created file: ") + newPath.string());
+			if (creatingLuaScript)
+				OpenFile(newPath);
 			return true;
 		}
 
@@ -566,6 +707,7 @@ namespace Editor
 							LOG_ERROR("Could not rename item: " + error.message());
 						else
 						{
+							UpdateMainScenePath(renamePath, newPath);
 							InvalidateThumbnailCache(renamePath);
 							InvalidateThumbnailCache(newPath);
 							LOG_INFO("Renamed item to: " + newPath.string());
@@ -712,6 +854,7 @@ namespace Editor
 				}
 			}
 
+			UpdateMainScenePath(source, destination);
 			InvalidateThumbnailCache(source);
 			InvalidateThumbnailCache(destination);
 			LOG_INFO("Moved " + source.string() + " to " + destination.string());
@@ -722,6 +865,11 @@ namespace Editor
 		{
 			for (const auto& path : selectedItems)
 			{
+				if (IsMainSceneWithin(path) || IsActiveSceneWithin(path))
+				{
+					LOG_WARN("Cannot delete the main scene or the currently open scene");
+					continue;
+				}
 				InvalidateThumbnailCache(path);
 				std::error_code error;
 				std::filesystem::remove_all(path, error);
@@ -832,6 +980,7 @@ namespace Editor
 		char newItemName[256];
 		char renameItemName[256];
 		bool creatingDirectory;
+		bool creatingLuaScript;
 		bool clipboardIsCut;
 		bool renamePopupRequested = false;
 		bool createPopupRequested = false;

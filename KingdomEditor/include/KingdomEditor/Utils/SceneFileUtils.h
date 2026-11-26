@@ -41,7 +41,7 @@ namespace Editor
 		}
 
 		inline bool SaveActiveScene(KE::SceneManager& sceneManager,
-			const std::filesystem::path& projectPath, std::string& startupScene, std::string& error)
+			const std::filesystem::path& projectPath, std::string& error)
 		{
 			error.clear();
 			if (!sceneManager.GetActiveScene())
@@ -100,7 +100,6 @@ namespace Editor
 			if (!sceneManager.SaveScene(scenePath, error))
 				return false;
 
-			startupScene = ProjectRelativePath(scenePath, projectPath);
 			return true;
 		}
 

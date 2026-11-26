@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <sstream>
 #include <string>
-#include <algorithm>
 #include <vector>
 
 namespace Editor
@@ -109,54 +108,6 @@ namespace Editor
             return config.str();
         }
 
-        static std::string GenerateProjectCppFile(std::string projectName)
-        {
-            projectName.erase(std::remove(projectName.begin(), projectName.end(), ' '), projectName.end());
-
-            std::string cppFile =
-R"DELIMITER(#include <KingdomEngine/KingdomEngine.h>
-#include <KingdomEngine/Core/EntryPoint.h>
-
-using namespace KE;
-
-class PROJECT_NAME : public Application
-{
-private:
-
-
-public:
-    PROJECT_NAME() : Application(true)
-    {
-
-    }
-
-    void OnReady() override
-    {
-
-    }
-
-    void OnUpdate() override
-    {
-
-    }
-
-    void OnEvent(EventType eType) override
-    {
-
-    }
-};
-
-KE::Application *KE::CreateApplication()
-{
-    return new PROJECT_NAME();
-}
-)DELIMITER";
-
-            cppFile = ReplaceTextWord(cppFile, "PROJECT_NAME", projectName);
-
-            return cppFile;
-        }
-
     private:
         static std::string MakeProjectRelativePath(const std::string& path, const std::filesystem::path& projectDirectory)
         {
@@ -202,19 +153,6 @@ KE::Application *KE::CreateApplication()
             }
 
             return escaped;
-        }
-
-        static std::string ReplaceTextWord(const std::string& text, const std::string& fromWord, const std::string& toWord)
-        {
-            std::string result = text;
-            size_t position = 0;
-            while ((position = result.find(fromWord, position)) != std::string::npos)
-            {
-                result.replace(position, fromWord.length(), toWord);
-                position += toWord.length();
-            }
-
-            return result;
         }
 
     };

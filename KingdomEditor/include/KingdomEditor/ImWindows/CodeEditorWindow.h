@@ -131,19 +131,6 @@ namespace Editor
 
 		void OnRender() override
 		{
-			//load project cpp file
-			if (ProjectManager::Get().GetLoadedProject() && !fileIsLoaded)
-			{
-				std::string projectName = ProjectManager::Get().GetLoadedProject()->properties.name;
-				projectName.erase(
-					std::remove(projectName.begin(), projectName.end(), ' '),
-					projectName.end()
-				);
-				const std::string mainFile = ProjectManager::Get().GetLoadedProject()->properties.path + "\\src\\" + projectName + ".cpp";
-				if (!OpenFile(mainFile))
-					return;
-			}
-			
 			//unload cpp file
 			if (!ProjectManager::Get().GetLoadedProject() && fileIsLoaded)
 			{

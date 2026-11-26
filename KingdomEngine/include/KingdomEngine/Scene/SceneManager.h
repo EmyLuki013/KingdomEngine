@@ -18,6 +18,8 @@ namespace KE
 		bool LoadScene(const std::filesystem::path& path, std::string& error);
 		bool SaveScene(const std::filesystem::path& path, std::string& error);
 		bool SaveActiveScene(std::string& error);
+		void RelocateActiveScenePath(const std::filesystem::path& oldPath,
+			const std::filesystem::path& newPath);
 
 		Scene* GetActiveScene() { return activeScene.get(); }
 		const Scene* GetActiveScene() const { return activeScene.get(); }

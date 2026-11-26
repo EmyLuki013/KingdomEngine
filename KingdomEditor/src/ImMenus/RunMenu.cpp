@@ -1,9 +1,7 @@
 #include <KingdomEngine/ImGui/ImMenu.h>
+#include <KingdomEngine/Core/Application.h>
 
 #include "KingdomEditor/Project/ProjectManager.h"
-#include "KingdomEditor/Project/ProjectBuild.h"
-
-#include <cstdlib>
 
 namespace Editor
 {
@@ -16,15 +14,14 @@ namespace Editor
 
 		void OnRender() override
 		{
-			if (Item("Build"))
-			{
-				ProjectBuild::Build();
-			}
-
-			if (Item("Run", "F5"))
-			{
-                ProjectManager::Get().RunProject();
-			}
+			ProjectManager& projectManager = ProjectManager::Get();
+			KE::Application* application = KE::Application::GetInstance();
+			const bool isRunning = application && application->IsRuntimeSceneRunning();
+			if (ImGui::MenuItem("Run", "F5", false,
+				projectManager.GetLoadedProject() != nullptr && !isRunning))
+				projectManager.RunProject();
+			if (ImGui::MenuItem("Stop", "Shift+F5", false, isRunning))
+				projectManager.StopProject();
 		}
 	};
 

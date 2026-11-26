@@ -44,6 +44,30 @@ namespace KE
 		}
 	}
 
+	bool Application::StartRuntimeScene(const std::filesystem::path& scenePath,
+		const std::filesystem::path& assetRoot, std::string& error)
+	{
+		error.clear();
+		if (runtimeScene)
+		{
+			error = "A runtime scene is already active";
+			return false;
+		}
+
+		std::unique_ptr<Scene> loadedScene = Scene::LoadFromFile(scenePath, error);
+		if (!loadedScene)
+			return false;
+
+		loadedScene->SetAssetRoot(assetRoot);
+		runtimeScene = std::move(loadedScene);
+		return true;
+	}
+
+	void Application::StopRuntimeScene()
+	{
+		runtimeScene.reset();
+	}
+
 	// IMGUI
 	void Application::ActivateImGui()
 	{
@@ -159,9 +183,10 @@ namespace KE
 			Renderer::GetFramebuffer().Bind();
 			Renderer::Clear();
 			OnUpdate();
-			if (Scene* scene = sceneManager.GetActiveScene())
+			Scene* scene = runtimeScene ? runtimeScene.get() : sceneManager.GetActiveScene();
+			if (scene)
 			{
-				if (isGameApplication)
+				if (isGameApplication || runtimeScene)
 					scene->Update(deltaTime);
 
 				constexpr float viewHeight = 10.0f;

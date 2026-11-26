@@ -12,13 +12,12 @@ A game engine!
 3. To run execute the bat script `RunWindows.bat`.
 
 ## Scenes
-When a project is opened in KingdomEditor, the editor loads or creates
-`scenes/Main.scene`. The Objects window lets you create scenes and
-hierarchical game objects; the Properties window edits an object's name,
-active state, and transform. Saving the project also saves the active scene and
-remembers it for the next time the project is opened. Scene files use versioned
-JSON and can also be saved from the Objects window. Older `.scene.json` files
-are renamed to `.scene` when loaded, when possible.
+When a project is opened in KingdomEditor, the editor loads its main scene,
+creating `scenes/Main.scene` if needed. To change the main scene, right-click a
+`.scene` file in the Content Browser and choose **Set as Main Scene**. Selecting
+another scene in the Objects window only opens it for editing; it does not
+change which scene runs first. Scene files use versioned JSON. Older
+`.scene.json` files are renamed to `.scene` when loaded, when possible.
 Pressing Ctrl+S saves the active scene and project; if the Code Editor is
 focused, its open source file is saved as well. Editor window positions and
 docking layout are persisted between launches.
@@ -30,11 +29,16 @@ stored relative to the project when possible. Enabled sprites are rendered into
 the live viewport using the GameObject hierarchy and transforms. The initial
 component set includes Transform, Sprite, and Lua Script.
 
+New projects start without a generated C++ source file. Create Lua scripts from
+the Content Browser context menu; the Script component's **Select Script**
+picker lists Lua files in the project.
+
 ## Lua scripts
 
-Game projects can attach a Lua Script component to a GameObject. Set its path
-relative to the project root, such as `scripts/Move.lua`, then build and run the
-project; scripts do not execute while editing the scene. Each script can define
+Game projects can attach a Lua Script component to a GameObject. Choose its
+script from the project picker; scripts do not execute while editing the scene.
+Use **Run** (F5) to play the configured main scene in the editor and **Stop**
+(Shift+F5) to end play. Each script can define
 `on_start(self)` and `on_update(self, dt)`. The `self` handle provides
 `get_name`, `get_position`/`set_position`, `get_rotation`/`set_rotation`,
 `get_scale`/`set_scale`, `set_active`, and `find_object(name)`.

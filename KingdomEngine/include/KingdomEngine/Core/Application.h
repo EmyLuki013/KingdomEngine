@@ -11,6 +11,10 @@
 #include "KingdomEngine/Events/ApplicationEvent.h"
 #include "KingdomEngine/Events/ImGuiEvent.h"
 
+#include <filesystem>
+#include <memory>
+#include <string>
+
 namespace KE
 {
 	class Application
@@ -39,6 +43,10 @@ namespace KE
 		SceneManager& GetSceneManager() { return sceneManager; }
 		const SceneManager& GetSceneManager() const { return sceneManager; }
 		void SetSceneViewportSize(float width, float height);
+		bool StartRuntimeScene(const std::filesystem::path& scenePath,
+			const std::filesystem::path& assetRoot, std::string& error);
+		void StopRuntimeScene();
+		bool IsRuntimeSceneRunning() const { return runtimeScene != nullptr; }
 
 		void Run();
 		void Quit();
@@ -53,6 +61,7 @@ namespace KE
 		ImGuiEvent imguiEvent;
 		Sprite sprite;
 		SceneManager sceneManager;
+		std::unique_ptr<Scene> runtimeScene;
 		float sceneViewportWidth = 1.0f;
 		float sceneViewportHeight = 1.0f;
 	};

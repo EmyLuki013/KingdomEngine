@@ -45,13 +45,13 @@ namespace Editor
 			static KE::ObjectId editingObjectId = 0;
 			static const KE::Scene* editingScene = nullptr;
 			static char nameBuffer[256] = "";
-			static const KE::Scene* scriptEditingScene = nullptr;
-			static KE::ObjectId scriptEditingObjectId = 0;
-			static KE::ScriptComponent* scriptEditingComponent = nullptr;
-			static char scriptPathBuffer[512] = "";
 			static std::filesystem::path texturePickerRoot;
 			static std::filesystem::path texturePickerDirectory;
 			static bool refreshTexturePicker = false;
+			static std::filesystem::path scriptPickerRoot;
+			static std::vector<std::filesystem::path> scriptPickerScripts;
+			static std::string scriptPickerError;
+			static bool refreshScriptPicker = false;
 			if (!object)
 			{
 				selectedSceneObjectId = 0;
@@ -130,29 +130,31 @@ namespace Editor
 					object->RemoveComponent<KE::SpriteComponent>();
 			}
 
-			if (scriptEditingScene != scene || scriptEditingObjectId != object->GetId() ||
-				scriptEditingComponent != script)
-			{
-				scriptEditingScene = scene;
-				scriptEditingObjectId = object->GetId();
-				scriptEditingComponent = script;
-				const std::string scriptPath = script ? script->GetScriptPath() : std::string();
-				std::strncpy(scriptPathBuffer, scriptPath.c_str(), sizeof(scriptPathBuffer) - 1);
-				scriptPathBuffer[sizeof(scriptPathBuffer) - 1] = '\0';
-			}
-
 			if (script)
 			{
 				bool scriptEnabled = script->IsEnabled();
 				if (ImGui::Checkbox("Script Enabled", &scriptEnabled))
 					script->SetEnabled(scriptEnabled);
-				ImGui::InputText("Lua Script Path", scriptPathBuffer, sizeof(scriptPathBuffer));
-				if (ImGui::Button("Apply Script"))
-					script->SetScriptPath(scriptPathBuffer);
+				ImGui::TextWrapped("Script: %s",
+					script->GetScriptPath().empty() ? "(none)" : script->GetScriptPath().c_str());
+				if (ImGui::Button("Select Script"))
+				{
+					const Project* project = ProjectManager::Get().GetLoadedProject();
+					if (project)
+					{
+						scriptPickerRoot = std::filesystem::path(project->properties.path).lexically_normal();
+						refreshScriptPicker = true;
+						ImGui::OpenPopup("Select Lua Script");
+					}
+					else
+						LOG_WARN("Open a project before selecting a Lua script");
+				}
+				RenderScriptPicker(*script, scriptPickerRoot, scriptPickerScripts,
+					scriptPickerError, refreshScriptPicker);
 				ImGui::SameLine();
 				if (ImGui::Button("Remove Script"))
 					object->RemoveComponent<KE::ScriptComponent>();
-				ImGui::TextDisabled("Scripts run only in the game runtime");
+				ImGui::TextDisabled("Scripts run only while the project is playing");
 			}
 		}
 
@@ -166,6 +168,91 @@ namespace Editor
 			});
 			return extension == ".png" || extension == ".jpg" || extension == ".jpeg" ||
 				extension == ".bmp" || extension == ".tga";
+		}
+
+		static void RenderScriptPicker(KE::ScriptComponent& script,
+			const std::filesystem::path& root, std::vector<std::filesystem::path>& scripts,
+			std::string& listingError, bool& refreshRequested)
+		{
+			if (!ImGui::IsPopupOpen("Select Lua Script"))
+				return;
+
+			ImGui::SetNextWindowSize(ImVec2(560.0f, 420.0f), ImGuiCond_Appearing);
+			ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(),
+				ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+			if (!ImGui::BeginPopupModal("Select Lua Script", nullptr, ImGuiWindowFlags_NoResize))
+				return;
+
+			if (ImGui::Button("Refresh"))
+				refreshRequested = true;
+			ImGui::TextWrapped("%s", root.string().c_str());
+			ImGui::Separator();
+
+			if (refreshRequested)
+			{
+				scripts.clear();
+				listingError.clear();
+				std::error_code iteratorError;
+				std::filesystem::recursive_directory_iterator iterator(
+					root, std::filesystem::directory_options::skip_permission_denied, iteratorError);
+				const std::filesystem::recursive_directory_iterator end;
+				while (!iteratorError && iterator != end)
+				{
+					std::error_code entryError;
+					if (iterator->is_directory(entryError))
+					{
+						std::string directoryName = iterator->path().filename().string();
+						std::transform(directoryName.begin(), directoryName.end(), directoryName.begin(),
+							[](unsigned char character) { return static_cast<char>(std::tolower(character)); });
+						if (directoryName == "build" || directoryName == ".git")
+							iterator.disable_recursion_pending();
+					}
+					else if (!entryError && iterator->is_regular_file(entryError) && !entryError)
+					{
+						std::string extension = iterator->path().extension().string();
+						std::transform(extension.begin(), extension.end(), extension.begin(),
+							[](unsigned char character) { return static_cast<char>(std::tolower(character)); });
+						if (extension == ".lua")
+							scripts.push_back(iterator->path());
+					}
+
+					if (entryError && listingError.empty())
+						listingError = "Could not inspect script picker entry: " + entryError.message();
+					iterator.increment(iteratorError);
+				}
+				if (iteratorError)
+					listingError = "Could not enumerate project scripts: " + iteratorError.message();
+
+				std::sort(scripts.begin(), scripts.end(), [&root](const auto& left, const auto& right)
+				{
+					return left.lexically_relative(root).generic_string() <
+						right.lexically_relative(root).generic_string();
+				});
+				refreshRequested = false;
+				if (!listingError.empty())
+					LOG_ERROR(listingError);
+			}
+
+			if (!listingError.empty())
+				ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.4f, 1.0f), "%s", listingError.c_str());
+
+			ImGui::BeginChild("LuaScriptPickerEntries", ImVec2(530.0f, 290.0f), true);
+			for (const auto& path : scripts)
+			{
+				const std::string relativePath = path.lexically_relative(root).generic_string();
+				if (ImGui::Selectable(relativePath.c_str(), relativePath == script.GetScriptPath()))
+				{
+					script.SetScriptPath(relativePath);
+					ImGui::CloseCurrentPopup();
+				}
+			}
+			if (scripts.empty() && listingError.empty())
+				ImGui::TextDisabled("No Lua scripts found in this project");
+			ImGui::EndChild();
+
+			if (ImGui::Button("Cancel"))
+				ImGui::CloseCurrentPopup();
+			ImGui::EndPopup();
 		}
 
 		static bool IsWithinDirectory(const std::filesystem::path& root, const std::filesystem::path& path)

@@ -156,9 +156,6 @@ namespace Editor
 							std::string loadError;
 							if (sceneManager.LoadScene(loadPath, loadError))
 							{
-								project->properties.startupScene =
-									SceneFileUtils::ProjectRelativePath(loadPath, project->properties.path);
-								project->SaveKepFile();
 								selectedSceneObjectId = 0;
 								ImGui::EndCombo();
 								return;
@@ -187,7 +184,7 @@ namespace Editor
 
 			std::string error;
 			if (!SceneFileUtils::SaveActiveScene(sceneManager, project->properties.path,
-				project->properties.startupScene, error))
+				error))
 			{
 				LOG_ERROR("Could not save scene: " + error);
 				return false;
@@ -221,7 +218,7 @@ namespace Editor
 
 			std::string error;
 			if (!SceneFileUtils::SaveActiveScene(sceneManager, project->properties.path,
-				project->properties.startupScene, error))
+				error))
 				LOG_ERROR("Could not create scene: " + error);
 			else
 			{

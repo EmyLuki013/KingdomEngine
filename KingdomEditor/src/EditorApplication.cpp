@@ -85,6 +85,9 @@ namespace Editor
             const std::filesystem::path newProjectPath = project->properties.path;
             if (sceneProjectPath != newProjectPath)
             {
+                if (IsRuntimeSceneRunning())
+                    StopRuntimeScene();
+
                 auto& sceneManager = GetSceneManager();
                 if (!sceneProjectPath.empty())
                 {
@@ -189,6 +192,9 @@ namespace Editor
             KE::Renderer::GetClearColor() = KE::Color(0.20f, 0.20f, 0.20f);
             if (!sceneProjectPath.empty())
             {
+                if (IsRuntimeSceneRunning())
+                    StopRuntimeScene();
+
                 const KE::Scene* currentScene = GetSceneManager().GetActiveScene();
                 if (currentScene && currentScene->IsDirty() && !GetSceneManager().GetActiveScenePath().empty())
                 {
@@ -256,7 +262,7 @@ namespace Editor
         {
             std::string sceneError;
             const bool sceneSaved = SceneFileUtils::SaveActiveScene(
-                GetSceneManager(), project->properties.path, project->properties.startupScene, sceneError);
+                GetSceneManager(), project->properties.path, sceneError);
             if (!sceneSaved)
                 LOG_ERROR("Could not save active scene with the project: " + sceneError);
 

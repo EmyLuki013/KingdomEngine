@@ -37,7 +37,7 @@ namespace Editor
                     {
                         std::string error;
                         if (!SceneFileUtils::SaveActiveScene(application->GetSceneManager(),
-                            project->properties.path, project->properties.startupScene, error))
+                            project->properties.path, error))
                         {
                             LOG_ERROR("Could not save active scene with the project: " + error);
                             showing = false;

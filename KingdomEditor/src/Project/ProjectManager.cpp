@@ -1,12 +1,12 @@
 #include "KingdomEditor/Project/ProjectManager.h"
 #include "KingdomEditor/Utils/Globals.h"
-#include "KingdomEditor/Utils/FileGenerator.h"
 
 #include <filesystem>
 #include <fstream>
 #include <algorithm>
 #include <cctype>
 #include <rapidjson/document.h>
+#include <KingdomEngine/Core/Application.h>
 
 namespace Editor
 {
@@ -102,18 +102,6 @@ namespace Editor
             KE::Directory subDir;
             subDir.Create(project.properties.path + "\\src");
             subDir.Create(project.properties.path + "\\build");
-
-            //create project main cpp file
-            KE::File cppFile;
-            std::string projectName = project.properties.name;
-            projectName.erase(
-                std::remove(projectName.begin(), projectName.end(), ' '),
-                projectName.end()
-            );
-            std::string cppFileName = project.properties.path + "\\src\\" + projectName + ".cpp";
-            cppFile.Open(cppFileName, KE::ModeFlags::WRITE);
-            cppFile.Write(FileGenerator::GenerateProjectCppFile(project.properties.name));
-            cppFile.Close();
         }
         else
         {
@@ -244,8 +232,65 @@ namespace Editor
 
     void ProjectManager::RunProject()
     {
-        std::thread runProjectThread(&ProjectManager::RunProjectThread, this);
-        runProjectThread.detach();
+        if (!loadedProject)
+        {
+            LOG_ERROR("Could not run project: no project is open");
+            return;
+        }
+
+        KE::Application* application = KE::Application::GetInstance();
+        if (!application)
+        {
+            LOG_ERROR("Could not run project: the engine application is unavailable");
+            return;
+        }
+        if (application->IsRuntimeSceneRunning())
+        {
+            LOG_WARN("The project is already running");
+            return;
+        }
+
+        const std::filesystem::path projectRoot = loadedProject->properties.path;
+        std::filesystem::path mainScenePath = loadedProject->properties.startupScene;
+        if (mainScenePath.empty())
+        {
+            LOG_ERROR("Could not run project: no main scene is configured");
+            return;
+        }
+        if (mainScenePath.is_relative())
+            mainScenePath = projectRoot / mainScenePath;
+        mainScenePath = mainScenePath.lexically_normal();
+
+        KE::SceneManager& sceneManager = application->GetSceneManager();
+        const std::filesystem::path activeScenePath = sceneManager.GetActiveScenePath().lexically_normal();
+        if (sceneManager.GetActiveScene() && sceneManager.GetActiveScene()->IsDirty() &&
+            activeScenePath == mainScenePath)
+        {
+            std::string saveError;
+            if (!sceneManager.SaveActiveScene(saveError))
+            {
+                LOG_ERROR("Could not save the main scene before running: " + saveError);
+                return;
+            }
+        }
+
+        std::string error;
+        if (!application->StartRuntimeScene(mainScenePath, projectRoot, error))
+        {
+            LOG_ERROR("Could not run the main scene: " + error);
+            return;
+        }
+        LOG_INFO("Running main scene: " + mainScenePath.string());
+    }
+
+    void ProjectManager::StopProject()
+    {
+        KE::Application* application = KE::Application::GetInstance();
+        if (application && application->IsRuntimeSceneRunning())
+        {
+            application->StopRuntimeScene();
+            LOG_INFO("Stopped project runtime");
+        }
     }
 
     void ProjectManager::RemoveProject(const std::string &projectName)
@@ -307,23 +352,4 @@ namespace Editor
         projectsMap[project.properties.name] = proj;
     }
 
-    void ProjectManager::RunProjectThread()
-    {
-        std::string projectName = ProjectManager::Get().GetLoadedProject()->properties.name;
-        std::string projectBuildPath = ProjectManager::Get().GetLoadedProject()->properties.path + "\\build\\";
-
-        KE::OS::SetCurrentDir(projectBuildPath);
-
-        std::string projectExePath = "call \"" + projectBuildPath + projectName + ".exe\" \"../" + projectName + ".kep\"";
-		LOG_INFO(projectExePath);
-        int result = std::system(projectExePath.c_str());
-        if (result != 0)
-        {
-            LOG_ERROR("Error to run project");
-            KE::OS::SetCurrentDir(KE::OS::GetCurrentDir() + "\\..");
-            return;
-        }
-
-        KE::OS::SetCurrentDir(KE::OS::GetCurrentDir() + "\\..");
-    }
 }

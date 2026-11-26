@@ -58,4 +58,24 @@ namespace KE
 		}
 		return SaveScene(activeScenePath, error);
 	}
+
+	void SceneManager::RelocateActiveScenePath(const std::filesystem::path& oldPath,
+		const std::filesystem::path& newPath)
+	{
+		if (activeScenePath.empty())
+			return;
+
+		const std::filesystem::path normalizedOldPath = oldPath.lexically_normal();
+		const std::filesystem::path normalizedActivePath = activeScenePath.lexically_normal();
+		if (normalizedActivePath == normalizedOldPath)
+		{
+			activeScenePath = newPath;
+			return;
+		}
+
+		const std::filesystem::path relative =
+			normalizedActivePath.lexically_relative(normalizedOldPath);
+		if (!relative.empty() && !relative.is_absolute() && *relative.begin() != "..")
+			activeScenePath = newPath / relative;
+	}
 }
